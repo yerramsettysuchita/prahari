@@ -8,10 +8,14 @@ export function CaseList({
   cases,
   loading,
   onVerify,
+  onRemove,
+  onClear,
 }: {
   cases: Case[];
   loading: boolean;
   onVerify: (c: Case) => void;
+  onRemove: (c: Case) => void;
+  onClear: () => void;
 }) {
   return (
     <section className="rounded-lg border border-line bg-surface shadow-soft">
@@ -19,9 +23,19 @@ export function CaseList({
         <h2 className="font-display text-xl font-semibold tracking-tightish text-primary">
           Recent cases
         </h2>
-        <span className="font-body text-xs tabular-nums text-muted">
-          {cases.length} open
-        </span>
+        <div className="flex items-center gap-4">
+          <span className="font-body text-xs tabular-nums text-muted">
+            {cases.length} open
+          </span>
+          {cases.length > 0 ? (
+            <button
+              onClick={onClear}
+              className="font-body text-xs font-medium text-muted underline decoration-dotted underline-offset-2 transition-colors hover:text-primary"
+            >
+              Clear all
+            </button>
+          ) : null}
+        </div>
       </header>
 
       {loading && cases.length === 0 ? (
@@ -96,6 +110,13 @@ export function CaseList({
                     Verify
                   </button>
                 ) : null}
+                <button
+                  onClick={() => onRemove(c)}
+                  title="Remove this case"
+                  className="rounded-md border border-line px-2.5 py-1 font-body text-xs font-medium text-muted transition-colors hover:border-line hover:text-primary"
+                >
+                  Remove
+                </button>
                 <span className="font-body text-xs tabular-nums text-muted">
                   {timeAgo(c.createdAt)}
                 </span>

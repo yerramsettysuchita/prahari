@@ -226,6 +226,26 @@ export async function fetchInsights(): Promise<WardInsight[]> {
   }
 }
 
+/** Remove a single case. */
+export async function deleteCase(caseId: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/cases/${caseId}`, { method: "DELETE" });
+  if (!res.ok) {
+    const detail = await safeDetail(res);
+    throw new Error(detail || `Could not remove case (${res.status})`);
+  }
+}
+
+/** Clear every case from the board. */
+export async function clearAllCases(): Promise<number> {
+  const res = await fetch(`${API_BASE}/cases`, { method: "DELETE" });
+  if (!res.ok) {
+    const detail = await safeDetail(res);
+    throw new Error(detail || `Could not clear cases (${res.status})`);
+  }
+  const data = await res.json();
+  return data.deleted ?? 0;
+}
+
 /** Fetch all cases for the map and list. */
 export async function fetchCases(): Promise<Case[]> {
   const res = await fetch(`${API_BASE}/cases`, { cache: "no-store" });

@@ -507,6 +507,35 @@ def list_cases(limit: int = 200) -> dict:
     return {"cases": cases, "count": len(cases)}
 
 
+@app.delete("/cases/{case_id}")
+def delete_case(case_id: str) -> dict:
+    """Remove a single case. Used by the Remove control in the case list."""
+    db = get_db()
+    if db is None:
+        raise HTTPException(status_code=503, detail="Firestore not configured.")
+    db.collection("cases").document(case_id).delete()
+    return {"deleted": case_id}
+
+
+@app.delete("/cases")
+def delete_all_cases() -> dict:
+    """Clear every case. Used by the Clear all control to reset the board."""
+    db = get_db()
+    if db is None:
+        raise HTTPException(status_code=503, detail="Firestore not configured.")
+    deleted = 0
+    while True:
+        docs = list(db.collection("cases").limit(400).stream())
+        if not docs:
+            break
+        batch = db.batch()
+        for d in docs:
+            batch.delete(d.reference)
+        batch.commit()
+        deleted += len(docs)
+    return {"deleted": deleted}
+
+
 @app.get("/scoreboard")
 def scoreboard() -> dict:
     """Government responsiveness scoreboard. Ranks BBMP wards and departments by

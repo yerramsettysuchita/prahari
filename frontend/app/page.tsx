@@ -1,7 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Case, fetchCases, fetchInsights, WardInsight } from "@/lib/api";
+import {
+  Case,
+  clearAllCases,
+  deleteCase,
+  fetchCases,
+  fetchInsights,
+  WardInsight,
+} from "@/lib/api";
 import { Nav } from "@/components/Nav";
 import { ReportPanel } from "@/components/ReportPanel";
 import { CaseMap } from "@/components/CaseMap";
@@ -44,6 +51,30 @@ export default function Home() {
     setCases((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
   }, []);
 
+  // Remove a single case, optimistically.
+  const handleRemove = useCallback(async (c: Case) => {
+    setCases((prev) => prev.filter((p) => p.id !== c.id));
+    try {
+      await deleteCase(c.id);
+    } catch {
+      // Reconcile on the next poll if the delete failed.
+      load();
+    }
+  }, [load]);
+
+  // Clear the whole board after a confirm.
+  const handleClear = useCallback(async () => {
+    if (!window.confirm("Remove all cases from the board? This cannot be undone.")) {
+      return;
+    }
+    setCases([]);
+    try {
+      await clearAllCases();
+    } catch {
+      load();
+    }
+  }, [load]);
+
   return (
     <main className="mx-auto max-w-6xl px-6 py-12 md:py-16">
       {/* Header */}
@@ -67,7 +98,13 @@ export default function Home() {
             onVerify={setVerifying}
             onUpdated={handleVerified}
           />
-          <CaseList cases={cases} loading={loading} onVerify={setVerifying} />
+          <CaseList
+            cases={cases}
+            loading={loading}
+            onVerify={setVerifying}
+            onRemove={handleRemove}
+            onClear={handleClear}
+          />
         </div>
         {/* Report panel */}
         <div className="order-1 lg:order-2">
