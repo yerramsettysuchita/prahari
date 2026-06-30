@@ -1,0 +1,24 @@
+# Secrets and credentials. Never commit these.
+secrets/
+*serviceAccount*.json
+*-firebase-adminsdk-*.json
+
+# Environment files
+.env
+.env.*
+!.env.example
+!.env.local.example
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Node / Next
+node_modules/
+.next/
+out/
+
+# OS
+.DS_Store

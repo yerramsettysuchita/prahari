@@ -1,0 +1,14 @@
+# Web layer
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+python-multipart==0.0.20
+python-dotenv==1.0.1
+
+# Google / Firebase
+firebase-admin==6.6.0
+google-genai>=1.9.0,<2
+google-cloud-bigquery==3.27.0
+
+# Google Agent Development Kit (ADK), wired in STEP 2+
+google-adk>=0.2.0

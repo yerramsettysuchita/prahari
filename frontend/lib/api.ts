@@ -1,0 +1,269 @@
+// Thin client for the Prahari backend. One place owns the base URL and types.
+
+export const API_BASE =
+  process.env.NEXT_PUBLIC_API_BASE?.replace(/\/$/, "") || "http://localhost:8080";
+
+export type IssueType =
+  | "pothole"
+  | "road_crack"
+  | "debris"
+  | "waterlogging"
+  | "unknown";
+
+export type Severity = "low" | "medium" | "high";
+
+export type CaseStatus = "open" | "escalated" | "verified_resolved";
+
+export interface CaseLocation {
+  lat: number;
+  lng: number;
+  ward?: string | null;
+}
+
+export interface Verification {
+  sameLocation: boolean;
+  resolved: boolean;
+  confidence: number;
+  reasoning: string;
+  verdict: "verified_resolved" | "needs_review";
+  provenance: string;
+  checkedAt: string;
+  afterPhoto: string | null;
+}
+
+export interface Case {
+  id: string;
+  type: IssueType;
+  severity: Severity;
+  status: CaseStatus;
+  location: CaseLocation;
+  photos: { before: string[]; after: string[] };
+  citizensAffected: number;
+  description: string;
+  createdAt: string;
+  verifiedResolved: boolean;
+  classificationConfidence?: number;
+  resolvedAt?: string | null;
+  resolutionReasoning?: string;
+  resolutionConfidence?: number;
+  lastVerification?: Verification;
+  // Grounded routing (STEP 5)
+  routedDept?: string | null;
+  zone?: string | null;
+  grievanceChannel?: string | null;
+  routingMatched?: boolean;
+  provenance?: string | null;
+  // Escalation (STEP 6)
+  slaDeadline?: string | null;
+  escalationLevel?: number;
+  escalationLabel?: string;
+  grievanceDraft?: string;
+  escalations?: EscalationDraft[];
+  lastEscalationReason?: string;
+}
+
+export interface EscalationDraft {
+  level: number;
+  label: string;
+  draftType: string;
+  text: string;
+  generatedAt: string;
+  grounded: boolean;
+}
+
+export const ESCALATION_LADDER = [
+  "Filed",
+  "Reminder sent",
+  "Publicly escalated",
+  "RTI drafted",
+];
+
+export interface ReportInput {
+  lat: number;
+  lng: number;
+  note?: string;
+  ward?: string;
+  image?: File | null;
+}
+
+export interface ReportResult {
+  merged: boolean;
+  case: Case;
+  /** Present when merged: prior report count and updated affected total. */
+  matchedCaseId?: string;
+  matchesReports?: number;
+  citizensAffected?: number;
+  dedup?: { reasoning?: string; confidence?: number; provenance?: string };
+  /** Present when a live merge crossed the threshold and auto-escalated. */
+  autoEscalation?: EscalationDraft | null;
+}
+
+/** Submit a new report. The backend either creates a case or merges it. */
+export async function submitReport(input: ReportInput): Promise<ReportResult> {
+  const form = new FormData();
+  form.append("lat", String(input.lat));
+  form.append("lng", String(input.lng));
+  if (input.note) form.append("note", input.note);
+  if (input.ward) form.append("ward", input.ward);
+  if (input.image) form.append("image", input.image);
+
+  const res = await fetch(`${API_BASE}/report`, { method: "POST", body: form });
+  if (!res.ok) {
+    const detail = await safeDetail(res);
+    throw new Error(detail || `Report failed (${res.status})`);
+  }
+  return res.json();
+}
+
+export interface VerifyResponse {
+  verification: Verification;
+  case: Case;
+}
+
+/** Submit a follow-up photo to verify a resolution with Gemini Vision. */
+export async function verifyResolution(
+  caseId: string,
+  image: File
+): Promise<VerifyResponse> {
+  const form = new FormData();
+  form.append("image", image);
+  const res = await fetch(`${API_BASE}/cases/${caseId}/verify`, {
+    method: "POST",
+    body: form,
+  });
+  if (!res.ok) {
+    const detail = await safeDetail(res);
+    throw new Error(detail || `Verification failed (${res.status})`);
+  }
+  return res.json();
+}
+
+export interface EscalationResponse {
+  advanced: boolean;
+  reason?: string;
+  escalation?: EscalationDraft;
+  case: Case;
+}
+
+/** Manually advance the escalation ladder one level (demo control). */
+export async function advanceEscalation(caseId: string): Promise<EscalationResponse> {
+  const res = await fetch(`${API_BASE}/cases/${caseId}/advance-escalation`, {
+    method: "POST",
+  });
+  if (!res.ok) {
+    const detail = await safeDetail(res);
+    throw new Error(detail || `Could not advance escalation (${res.status})`);
+  }
+  return res.json();
+}
+
+/** Run the time-based SLA check; advances a level only if past the deadline. */
+export async function checkEscalation(caseId: string): Promise<EscalationResponse> {
+  const res = await fetch(`${API_BASE}/cases/${caseId}/check-escalation`, {
+    method: "POST",
+  });
+  if (!res.ok) {
+    const detail = await safeDetail(res);
+    throw new Error(detail || `Could not check escalation (${res.status})`);
+  }
+  return res.json();
+}
+
+export interface WardScore {
+  ward: string;
+  rank: number;
+  responsivenessScore: number;
+  verifiedResolvedCount: number;
+  avgResolutionDays: number | null;
+  openCount: number;
+  oldestOpenAgeDays: number;
+}
+
+export interface DeptScore extends Omit<WardScore, "ward"> {
+  department: string;
+}
+
+export interface Scoreboard {
+  wards: WardScore[];
+  departments: DeptScore[];
+  headline: {
+    totalCases: number;
+    totalCitizensAffected: number;
+    verifiedResolvedCount: number;
+    avgResolutionDays: number | null;
+  };
+  source: string;
+}
+
+export interface WardInsight {
+  ward: string;
+  openCount: number;
+  avgUnresolvedAgeDays: number;
+  riskLevel: "low" | "medium" | "high";
+  riskNote: string;
+}
+
+/** Fetch the government responsiveness scoreboard. */
+export async function fetchScoreboard(): Promise<Scoreboard | null> {
+  try {
+    const res = await fetch(`${API_BASE}/scoreboard`, { cache: "no-store" });
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
+
+/** Fetch per-ward predictive risk insights. */
+export async function fetchInsights(): Promise<WardInsight[]> {
+  try {
+    const res = await fetch(`${API_BASE}/insights`, { cache: "no-store" });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.wards ?? []) as WardInsight[];
+  } catch {
+    return [];
+  }
+}
+
+/** Fetch all cases for the map and list. */
+export async function fetchCases(): Promise<Case[]> {
+  const res = await fetch(`${API_BASE}/cases`, { cache: "no-store" });
+  if (!res.ok) {
+    const detail = await safeDetail(res);
+    throw new Error(detail || `Could not load cases (${res.status})`);
+  }
+  const data = await res.json();
+  return (data.cases ?? []) as Case[];
+}
+
+async function safeDetail(res: Response): Promise<string | null> {
+  try {
+    const data = await res.json();
+    return data.detail ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// Display helpers shared across the UI.
+export const ISSUE_LABEL: Record<IssueType, string> = {
+  pothole: "Pothole",
+  road_crack: "Road crack",
+  debris: "Debris",
+  waterlogging: "Waterlogging",
+  unknown: "Unclassified",
+};
+
+export function timeAgo(iso: string): string {
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return "";
+  const secs = Math.max(0, Math.floor((Date.now() - then) / 1000));
+  if (secs < 60) return "just now";
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return `${mins} min ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs} hr ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days} day${days === 1 ? "" : "s"} ago`;
+}

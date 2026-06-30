@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Design tokens — the entire Prahari palette. One accent, used sparingly. */
+  --ink: #0e0f0d; /* background ink */
+  --surface: #1a1b17; /* card surface */
+  --line: #2a2b26; /* 1px hairline border */
+  --text-primary: #f4f2ec; /* warm off-white, never pure white */
+  --text-muted: #8b8c84;
+  --accent: #e8b23a; /* amber — alerts, escalation, key metric only */
+  --positive: #6fae7e; /* resolved / positive state only */
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background-color: var(--ink);
+    color: var(--text-primary);
+    font-family: var(--font-body), system-ui, sans-serif;
+    font-feature-settings: "ss01", "cv01", "tnum";
+  }
+
+  /* Optical sizing for the Fraunces display face. */
+  .font-display {
+    font-optical-sizing: auto;
+  }
+
+  /* Tabular figures for dense data / metrics. */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  ::selection {
+    background-color: var(--accent);
+    color: var(--ink);
+  }
+}
+
+@layer utilities {
+  /* Hairline divider used across the command center. */
+  .border-line {
+    border-color: var(--line);
+  }
+}

@@ -1,0 +1,112 @@
+[
+  {
+    "ward": "Shanthala Nagar",
+    "wardNumber": 113,
+    "zone": "East",
+    "issueType": "pothole",
+    "department": "BBMP Road Infrastructure Engineering wing",
+    "grievanceChannel": "BBMP Sahaaya public grievance portal",
+    "source": "BBMP public ward and zone structure and Sahaaya grievance categories",
+    "refLat": 12.9716,
+    "refLng": 77.609
+  },
+  {
+    "ward": "Domlur",
+    "wardNumber": 112,
+    "zone": "East",
+    "issueType": "waterlogging",
+    "department": "BBMP Stormwater Drain wing",
+    "grievanceChannel": "BBMP Sahaaya public grievance portal",
+    "source": "BBMP public ward and zone structure and Sahaaya grievance categories",
+    "refLat": 12.9609,
+    "refLng": 77.6387
+  },
+  {
+    "ward": "Indiranagar",
+    "wardNumber": 80,
+    "zone": "East",
+    "issueType": "pothole",
+    "department": "BBMP Road Infrastructure Engineering wing",
+    "grievanceChannel": "BBMP Sahaaya public grievance portal",
+    "source": "BBMP public ward and zone structure and Sahaaya grievance categories",
+    "refLat": 12.9719,
+    "refLng": 77.6412
+  },
+  {
+    "ward": "Jayanagar",
+    "wardNumber": 169,
+    "zone": "South",
+    "issueType": "road_crack",
+    "department": "BBMP Road Infrastructure Engineering wing",
+    "grievanceChannel": "BBMP Sahaaya public grievance portal",
+    "source": "BBMP public ward and zone structure and Sahaaya grievance categories",
+    "refLat": 12.925,
+    "refLng": 77.5938
+  },
+  {
+    "ward": "Banashankari Temple Ward",
+    "wardNumber": 184,
+    "zone": "South",
+    "issueType": "pothole",
+    "department": "BBMP Road Infrastructure Engineering wing",
+    "grievanceChannel": "BBMP Sahaaya public grievance portal",
+    "source": "BBMP public ward and zone structure and Sahaaya grievance categories",
+    "refLat": 12.9255,
+    "refLng": 77.5468
+  },
+  {
+    "ward": "Koramangala",
+    "wardNumber": 151,
+    "zone": "South",
+    "issueType": "waterlogging",
+    "department": "BBMP Stormwater Drain wing",
+    "grievanceChannel": "BBMP Sahaaya public grievance portal",
+    "source": "BBMP public ward and zone structure and Sahaaya grievance categories",
+    "refLat": 12.9352,
+    "refLng": 77.6245
+  },
+  {
+    "ward": "HSR Layout",
+    "wardNumber": 174,
+    "zone": "Bommanahalli",
+    "issueType": "debris",
+    "department": "BBMP Solid Waste Management wing",
+    "grievanceChannel": "BBMP Sahaaya public grievance portal",
+    "source": "BBMP public ward and zone structure and Sahaaya grievance categories",
+    "refLat": 12.9116,
+    "refLng": 77.6412
+  },
+  {
+    "ward": "Bellandur",
+    "wardNumber": 150,
+    "zone": "Mahadevapura",
+    "issueType": "waterlogging",
+    "department": "BBMP Stormwater Drain wing",
+    "grievanceChannel": "BBMP Sahaaya public grievance portal",
+    "source": "BBMP public ward and zone structure and Sahaaya grievance categories",
+    "refLat": 12.9304,
+    "refLng": 77.6784
+  },
+  {
+    "ward": "Malleshwaram",
+    "wardNumber": 45,
+    "zone": "West",
+    "issueType": "pothole",
+    "department": "BBMP Road Infrastructure Engineering wing",
+    "grievanceChannel": "BBMP Sahaaya public grievance portal",
+    "source": "BBMP public ward and zone structure and Sahaaya grievance categories",
+    "refLat": 13.0035,
+    "refLng": 77.5709
+  },
+  {
+    "ward": "Yelahanka Satellite Town",
+    "wardNumber": 4,
+    "zone": "Yelahanka",
+    "issueType": "pothole",
+    "department": "BBMP Road Infrastructure Engineering wing",
+    "grievanceChannel": "BBMP Sahaaya public grievance portal",
+    "source": "BBMP public ward and zone structure and Sahaaya grievance categories",
+    "refLat": 13.1007,
+    "refLng": 77.5963
+  }
+]
