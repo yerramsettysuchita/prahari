@@ -120,13 +120,16 @@ export interface VerifyResponse {
   case: Case;
 }
 
-/** Submit a follow-up photo to verify a resolution with Gemini Vision. */
+/** Submit a follow-up photo to verify a resolution with Gemini Vision.
+ * Optionally include a before photo when the case has none on file. */
 export async function verifyResolution(
   caseId: string,
-  image: File
+  image: File,
+  before?: File | null
 ): Promise<VerifyResponse> {
   const form = new FormData();
   form.append("image", image);
+  if (before) form.append("before", before);
   const res = await fetch(`${API_BASE}/cases/${caseId}/verify`, {
     method: "POST",
     body: form,

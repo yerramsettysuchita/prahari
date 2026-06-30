@@ -2,12 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import {
-  Case,
-  ISSUE_LABEL,
-  Verification,
-  verifyResolution,
-} from "@/lib/api";
+import { Case, ISSUE_LABEL, Verification, verifyResolution } from "@/lib/api";
 import { LoadingLine } from "./LoadingLine";
 
 export function VerifyPanel({
@@ -19,31 +14,51 @@ export function VerifyPanel({
   onClose: () => void;
   onVerified: (updated: Case) => void;
 }) {
-  const beforeUrl = caseItem.photos?.before?.[0] || null;
+  const storedBefore = caseItem.photos?.before?.[0] || null;
+
+  const [beforeFile, setBeforeFile] = useState<File | null>(null);
+  const [beforePreview, setBeforePreview] = useState<string | null>(null);
   const [afterFile, setAfterFile] = useState<File | null>(null);
   const [afterPreview, setAfterPreview] = useState<string | null>(null);
+
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [verification, setVerification] = useState<Verification | null>(null);
-  const [dragging, setDragging] = useState(false);
-  const fileInput = useRef<HTMLInputElement>(null);
 
-  const pick = useCallback((file: File | undefined | null) => {
-    if (!file) return;
-    setAfterFile(file);
-    setAfterPreview((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return URL.createObjectURL(file);
-    });
-    setError(null);
-  }, []);
+  const makePicker = useCallback(
+    (
+      setFile: (f: File) => void,
+      setPreview: (s: string) => void,
+      prev: string | null
+    ) =>
+      (file: File | undefined | null) => {
+        if (!file) return;
+        setFile(file);
+        if (prev) URL.revokeObjectURL(prev);
+        setPreview(URL.createObjectURL(file));
+        setError(null);
+      },
+    []
+  );
+
+  const pickBefore = makePicker(setBeforeFile, setBeforePreview, beforePreview);
+  const pickAfter = makePicker(setAfterFile, setAfterPreview, afterPreview);
+
+  // The before image is either already stored, or one the user uploads now.
+  const beforeSrc = storedBefore || beforePreview;
+  const beforeReady = !!beforeSrc;
+  const canSubmit = !!afterFile && beforeReady && !submitting;
 
   const submit = useCallback(async () => {
-    if (!afterFile) return;
+    if (!afterFile || !beforeReady) return;
     setSubmitting(true);
     setError(null);
     try {
-      const res = await verifyResolution(caseItem.id, afterFile);
+      const res = await verifyResolution(
+        caseItem.id,
+        afterFile,
+        beforeFile ?? undefined
+      );
       setVerification(res.verification);
       onVerified(res.case);
     } catch (e) {
@@ -53,7 +68,7 @@ export function VerifyPanel({
     } finally {
       setSubmitting(false);
     }
-  }, [afterFile, caseItem.id, onVerified]);
+  }, [afterFile, beforeFile, beforeReady, caseItem.id, onVerified]);
 
   const resolved = verification?.verdict === "verified_resolved";
 
@@ -84,56 +99,41 @@ export function VerifyPanel({
         </header>
 
         <div className="px-6 py-6">
-          {/* The before and after pair: the hero visual of this step */}
+          {/* The before and after pair. Both are uploadable, before is locked
+              once a stored photo exists. This is the hero visual of the step. */}
           <div className="grid grid-cols-2 overflow-hidden rounded-lg border border-line">
-            <Frame label="Before" src={beforeUrl} />
+            <Frame
+              label="Before"
+              src={beforeSrc}
+              editable={!storedBefore && !verification}
+              onFile={pickBefore}
+              placeholder="Click to upload the before photo."
+            />
             <div className="border-l border-line">
               <Frame
                 label="After"
                 src={afterPreview}
-                placeholder="Upload a follow-up photo of the same spot."
+                editable={!verification}
+                onFile={pickAfter}
+                placeholder="Click to upload the after photo."
               />
             </div>
           </div>
 
-          {/* Upload control (hidden once a verdict is in) */}
           {!verification ? (
             <div className="mt-5">
-              <div
-                onClick={() => fileInput.current?.click()}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setDragging(true);
-                }}
-                onDragLeave={() => setDragging(false)}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  setDragging(false);
-                  pick(e.dataTransfer.files?.[0]);
-                }}
-                className={`flex h-16 cursor-pointer items-center justify-center rounded-lg border border-dashed transition-colors ${
-                  dragging ? "border-accent bg-accent/5" : "border-line bg-ink"
-                }`}
-              >
-                <span className="px-4 text-center font-body text-sm text-muted">
-                  {afterFile
-                    ? "Follow-up photo ready. Run the check below."
-                    : "Drag the after photo here, or click to choose one."}
-                </span>
-              </div>
-              <input
-                ref={fileInput}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="hidden"
-                onChange={(e) => pick(e.target.files?.[0])}
-              />
+              <p className="font-body text-sm text-muted">
+                {!beforeReady
+                  ? "Upload the before photo to compare against."
+                  : !afterFile
+                  ? "Now upload the after photo of the same spot."
+                  : "Both photos ready. Run the vision check."}
+              </p>
 
               <button
                 type="button"
                 onClick={submit}
-                disabled={!afterFile || submitting}
+                disabled={!canSubmit}
                 className="mt-4 w-full rounded-lg bg-accent px-4 py-3 font-body text-sm font-semibold text-ink transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Run vision check
@@ -220,14 +220,38 @@ export function VerifyPanel({
 function Frame({
   label,
   src,
+  editable = false,
+  onFile,
   placeholder,
 }: {
   label: string;
   src: string | null;
+  editable?: boolean;
+  onFile?: (f: File | undefined | null) => void;
   placeholder?: string;
 }) {
+  const input = useRef<HTMLInputElement>(null);
+  const [dragging, setDragging] = useState(false);
+
   return (
-    <div className="relative aspect-[4/3] bg-ink">
+    <div
+      onClick={() => editable && input.current?.click()}
+      onDragOver={(e) => {
+        if (!editable) return;
+        e.preventDefault();
+        setDragging(true);
+      }}
+      onDragLeave={() => setDragging(false)}
+      onDrop={(e) => {
+        if (!editable) return;
+        e.preventDefault();
+        setDragging(false);
+        onFile?.(e.dataTransfer.files?.[0]);
+      }}
+      className={`relative aspect-[4/3] bg-ink ${
+        editable ? "cursor-pointer" : ""
+      } ${dragging ? "ring-1 ring-accent" : ""}`}
+    >
       <span className="absolute left-3 top-3 z-10 rounded-md border border-line bg-ink/80 px-2 py-0.5 font-body text-[11px] font-medium uppercase tracking-[0.12em] text-muted">
         {label}
       </span>
@@ -237,10 +261,20 @@ function Frame({
       ) : (
         <div className="flex h-full items-center justify-center px-4 text-center">
           <span className="font-body text-sm text-muted">
-            {placeholder || "No photo on file."}
+            {editable ? placeholder : "No photo on file."}
           </span>
         </div>
       )}
+      {editable ? (
+        <input
+          ref={input}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={(e) => onFile?.(e.target.files?.[0])}
+        />
+      ) : null}
     </div>
   );
 }

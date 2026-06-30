@@ -367,13 +367,18 @@ def advance_escalation(case_id: str) -> dict:
 async def verify_case(
     case_id: str,
     image: UploadFile = File(...),
+    before: Optional[UploadFile] = File(None),
 ) -> dict:
     """Verify a resolution from a follow-up photo, via resolution_agent.
 
-    Stores the photo as photos.after, runs the before/after vision comparison,
-    and flips the case to verified_resolved only on a confident, same-location
-    resolved verdict. Otherwise the case stays open and the attempt is recorded
-    with its needs_review reasoning. Never crashes on a vision failure.
+    The "after" photo is required. The "before" photo is optional: if a before
+    image is uploaded it is used directly for the comparison (and stored), which
+    is the path used when the case has no stored before photo. Otherwise the
+    case's stored before photo is used.
+
+    Flips the case to verified_resolved only on a confident, same-location
+    resolved verdict. Otherwise the case stays open with a needs_review note.
+    Never crashes on a vision failure.
     """
     db = get_db()
     if db is None:
@@ -398,15 +403,25 @@ async def verify_case(
         after_bytes, f"cases/{case_id}/after-{int(datetime.now().timestamp())}.{ext}", content_type
     )
 
+    # Resolve the "before" image: an uploaded one wins, else the stored photo.
+    before_bytes = None
     before_photos = (case.get("photos") or {}).get("before") or []
     before_url = before_photos[0] if before_photos else None
+    if before is not None:
+        before_bytes = await before.read()
+        before_mime = before.content_type or "image/jpeg"
+        bext = before_mime.split("/", 1)[1].split(";")[0] if "/" in before_mime else "jpg"
+        stored = upload_image(before_bytes, f"cases/{case_id}/before.{bext}", before_mime)
+        if stored:
+            before_url = stored
+            case.setdefault("photos", {})["before"] = [stored]
 
     # 2) Run the vision comparison (never raises).
     result = verify_resolution(
         case_id=case_id,
         issue_type=case.get("type", "unknown"),
         before_url=before_url,
-        before_bytes=None,
+        before_bytes=before_bytes,
         after_bytes=after_bytes,
         after_mime=content_type,
     )
@@ -431,6 +446,9 @@ async def verify_case(
         "photos.after": after_list,
         "lastVerification": verification,
     }
+    # Persist a newly uploaded before photo so the case keeps its evidence.
+    if before is not None and before_url:
+        update["photos.before"] = [before_url]
 
     if result["verdict"] == "verified_resolved":
         update.update(
