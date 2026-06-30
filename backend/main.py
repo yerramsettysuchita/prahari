@@ -68,6 +68,28 @@ def health() -> dict:
     return {"status": "ok", "service": "prahari-backend", "version": app.version}
 
 
+@app.get("/debug/firebase")
+def debug_firebase() -> dict:
+    """Temporary diagnostics for credential wiring. Safe: exposes no secrets."""
+    from firebase import _resolve_credentials_path, get_db, get_init_error
+
+    db = get_db()
+    resolved = _resolve_credentials_path()
+    try:
+        etc_secrets = os.listdir("/etc/secrets")
+    except Exception as e:
+        etc_secrets = f"unreadable: {e}"
+    return {
+        "db_ok": db is not None,
+        "cred_env": os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"),
+        "resolved_path": resolved,
+        "resolved_exists": resolved is not None,
+        "etc_secrets": etc_secrets,
+        "project_id_env": os.environ.get("FIREBASE_PROJECT_ID"),
+        "init_error": get_init_error(),
+    }
+
+
 @app.post("/report")
 async def create_report(
     lat: float = Form(...),

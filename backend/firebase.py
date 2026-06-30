@@ -20,6 +20,7 @@ import load_env  # noqa: F401  loads backend/.env on import
 
 _db = None
 _initialized = False
+_init_error = None
 
 
 def _resolve_credentials_path() -> Optional[str]:
@@ -37,8 +38,15 @@ def _resolve_credentials_path() -> Optional[str]:
     return str(p) if p.exists() else None
 
 
+def get_init_error():
+    """Last Firebase init error message, or None. For diagnostics."""
+    if not _initialized:
+        _init()
+    return _init_error
+
+
 def _init() -> None:
-    global _db, _initialized
+    global _db, _initialized, _init_error
     if _initialized:
         return
     _initialized = True
@@ -66,6 +74,7 @@ def _init() -> None:
         _db = firestore.client()
     except Exception as exc:  # pragma: no cover - surfaced via 503 in endpoints
         print(f"[firebase] not initialized: {exc}")
+        _init_error = f"{type(exc).__name__}: {exc}"
         _db = None
 
 
