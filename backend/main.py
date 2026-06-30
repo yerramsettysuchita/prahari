@@ -180,7 +180,7 @@ async def create_report(
                 "dedup": {
                     "confidence": dedup["confidence"],
                     "reasoning": dedup["reasoning"],
-                    "provenance": "gemini-flash-latest dedup within 50 meters",
+                    "provenance": "gemini-2.5-flash dedup within 50 meters",
                 },
                 "autoEscalation": auto["escalation"] if auto else None,
                 "case": fresh,
@@ -422,7 +422,7 @@ async def verify_case(
         "confidence": result["confidence"],
         "reasoning": result["reasoning"],
         "verdict": result["verdict"],
-        "provenance": "gemini-flash-latest vision before/after comparison",
+        "provenance": "gemini-2.5-flash vision before/after comparison",
         "checkedAt": now,
         "afterPhoto": after_url,
     }

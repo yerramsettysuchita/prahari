@@ -181,7 +181,7 @@ try:  # pragma: no cover - declaration only
 
     routing_agent = Agent(
         name="routing_agent",
-        model="gemini-flash-latest",
+        model=os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
         description="Routes a case to the responsible BBMP department using only the grounded knowledge base.",
         instruction=(
             "You route civic road cases to the responsible BBMP department. You may "

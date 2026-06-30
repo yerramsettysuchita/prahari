@@ -1,7 +1,7 @@
 """intake_agent — the first node of the Prahari agent graph.
 
 Multimodal classification of a road issue from an image plus location and an
-optional note. Uses gemini-flash-latest to return strict structured JSON:
+optional note. Uses gemini-2.5-flash to return strict structured JSON:
 issueType, severity, and a one-line plain-language description.
 
 This module exposes two things:
@@ -127,9 +127,9 @@ def classify_intake(
         location_line = f"Location: latitude {lat}, longitude {lng}."
         note_line = f"Citizen note: {note.strip()}" if note and note.strip() else "Citizen note: none."
 
-        print("[intake_agent][diag] calling Gemini model=gemini-flash-latest")
+        print("[intake_agent][diag] calling Gemini model=gemini-2.5-flash")
         response = client.models.generate_content(
-            model="gemini-flash-latest",
+            model=os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
             contents=[
                 types.Part.from_bytes(data=image_bytes, mime_type=mime_type or "image/jpeg"),
                 f"{location_line}\n{note_line}\n\nClassify this road issue.",
@@ -188,7 +188,7 @@ try:  # pragma: no cover - declaration only
 
     intake_agent = Agent(
         name="intake_agent",
-        model="gemini-flash-latest",
+        model=os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
         description="Classifies a road issue from a photo, location, and note.",
         instruction=INSTRUCTION,
     )

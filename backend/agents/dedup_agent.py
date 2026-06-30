@@ -184,7 +184,7 @@ def find_duplicate(
         }
 
         response = client.models.generate_content(
-            model="gemini-flash-latest",
+            model=os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
             contents=[
                 "Decide if the new report duplicates one of the nearby cases.\n"
                 + json.dumps(payload, ensure_ascii=False)
@@ -235,7 +235,7 @@ try:  # pragma: no cover - declaration only
 
     dedup_agent = Agent(
         name="dedup_agent",
-        model="gemini-flash-latest",
+        model=os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
         description="Judges whether a new road report duplicates a nearby open case.",
         instruction=INSTRUCTION,
     )

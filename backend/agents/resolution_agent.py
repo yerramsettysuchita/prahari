@@ -126,7 +126,7 @@ def verify_resolution(
         from google.genai import types
 
         response = client.models.generate_content(
-            model="gemini-flash-latest",
+            model=os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
             contents=[
                 "BEFORE image:",
                 types.Part.from_bytes(data=before_bytes, mime_type="image/jpeg"),
@@ -190,7 +190,7 @@ try:  # pragma: no cover - declaration only
 
     resolution_agent = Agent(
         name="resolution_agent",
-        model="gemini-flash-latest",
+        model=os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
         description="Confirms a road issue is physically fixed by comparing before and after photos.",
         instruction=INSTRUCTION,
     )

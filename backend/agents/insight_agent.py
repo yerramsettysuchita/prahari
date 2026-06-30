@@ -111,7 +111,7 @@ def _model_risk(client, agg: dict) -> tuple[str, str] | None:
             "openByType": agg.get("types", {}),
         }
         response = client.models.generate_content(
-            model="gemini-flash-latest",
+            model=os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
             contents=["Assess civic risk for this ward.\n" + json.dumps(facts)],
             config=types.GenerateContentConfig(
                 system_instruction=INSTRUCTION,
@@ -171,7 +171,7 @@ try:  # pragma: no cover - declaration only
 
     insight_agent = Agent(
         name="insight_agent",
-        model="gemini-flash-latest",
+        model=os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
         description="Surfaces predictive civic risk per ward, grounded in real open-case counts.",
         instruction=INSTRUCTION,
     )

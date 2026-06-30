@@ -210,7 +210,7 @@ def draft_for_level(level: int, case: dict) -> EscalationDraft:
         )
 
         response = client.models.generate_content(
-            model="gemini-flash-latest",
+            model=os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
             contents=[prompt],
             config=types.GenerateContentConfig(
                 system_instruction=instruction,
@@ -253,7 +253,7 @@ try:  # pragma: no cover - declaration only
 
     escalation_agent = Agent(
         name="escalation_agent",
-        model="gemini-flash-latest",
+        model=os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
         description="Sets SLAs and drafts grounded grievances, escalating unresolved cases autonomously.",
         instruction=(
             "You manage civic case escalation. You set service level deadlines and "
