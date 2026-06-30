@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import os
+import traceback
 from typing import Optional, TypedDict
 
 ISSUE_TYPES = ("pothole", "road_crack", "debris", "waterlogging")
@@ -79,7 +80,17 @@ def _client():
     try:
         from google import genai
 
-        api_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
+        google_key = os.environ.get("GOOGLE_API_KEY")
+        gemini_key = os.environ.get("GEMINI_API_KEY")
+        api_key = google_key or gemini_key
+        # TEMP DIAGNOSTIC: which key env is present (never log the value).
+        print(
+            f"[intake_agent][diag] GOOGLE_API_KEY present={bool(google_key)} "
+            f"GEMINI_API_KEY present={bool(gemini_key)} "
+            f"using={'GOOGLE_API_KEY' if google_key else ('GEMINI_API_KEY' if gemini_key else 'none/ADC')} "
+            f"key_len={len(api_key) if api_key else 0} "
+            f"key_prefix={api_key[:3] if api_key else ''}"
+        )
         if api_key:
             return genai.Client(api_key=api_key)
         # Fall back to ADC / Vertex configuration if present.
@@ -98,7 +109,16 @@ def classify_intake(
 ) -> IntakeResult:
     """Classify a road issue. Always returns a result, never raises."""
     client = _client()
+    # TEMP DIAGNOSTIC: surface why classification might short-circuit.
+    print(
+        f"[intake_agent][diag] classify_intake called: client={'ok' if client else 'None'} "
+        f"image_bytes={len(image_bytes) if image_bytes else 0} mime={mime_type}"
+    )
     if client is None or not image_bytes:
+        print(
+            "[intake_agent][diag] short-circuit to unknown: "
+            f"reason={'no client' if client is None else 'no image bytes'}"
+        )
         return _unknown(note)
 
     try:
@@ -107,6 +127,7 @@ def classify_intake(
         location_line = f"Location: latitude {lat}, longitude {lng}."
         note_line = f"Citizen note: {note.strip()}" if note and note.strip() else "Citizen note: none."
 
+        print("[intake_agent][diag] calling Gemini model=gemini-flash-latest")
         response = client.models.generate_content(
             model="gemini-flash-latest",
             contents=[
@@ -122,6 +143,8 @@ def classify_intake(
         )
 
         raw = (response.text or "").strip()
+        # TEMP DIAGNOSTIC: log the raw model output before parsing.
+        print(f"[intake_agent][diag] raw model response (first 500 chars): {raw[:500]!r}")
         data = json.loads(raw)
 
         issue = data.get("issueType")
@@ -148,7 +171,10 @@ def classify_intake(
             confidence=confidence,
         )
     except Exception as exc:
-        print(f"[intake_agent] classification failed: {exc}")
+        # TEMP DIAGNOSTIC: surface the full error type and traceback so the
+        # real production failure is visible instead of the silent fallback.
+        print(f"[intake_agent][diag] classification raised {type(exc).__name__}: {exc}")
+        print("[intake_agent][diag] traceback:\n" + traceback.format_exc())
         return _unknown(note)
 
 
