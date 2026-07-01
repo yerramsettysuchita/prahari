@@ -8,18 +8,36 @@ type Status = "idle" | "loading" | "ready" | "error" | "no-key";
 
 let loadPromise: Promise<void> | null = null;
 
-function injectBootstrap(): Promise<void> {
+/**
+ * Load the Google Maps JS API the classic way, pinned to the stable quarterly
+ * channel. Without loading=async the full API is available the moment the
+ * script fires onload, so google.maps.Map, Marker, and Circle are all ready.
+ * This is the most compatible and reliable loader for the app.
+ */
+function loadScript(): Promise<void> {
   return new Promise<void>((resolve, reject) => {
-    const w = window as unknown as {
-      google?: { maps?: { importLibrary?: unknown } };
-    };
-    // Bootstrap already present (for example after a hot reload).
-    if (w.google?.maps?.importLibrary) {
+    if (typeof window === "undefined") {
+      reject(new Error("no window"));
+      return;
+    }
+    const w = window as unknown as { google?: { maps?: { Map?: unknown } } };
+    if (w.google?.maps?.Map) {
       resolve();
       return;
     }
+    const existing = document.getElementById(
+      "gmaps-js"
+    ) as HTMLScriptElement | null;
+    if (existing) {
+      existing.addEventListener("load", () => resolve());
+      existing.addEventListener("error", () =>
+        reject(new Error("Google Maps failed to load"))
+      );
+      return;
+    }
     const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${MAPS_KEY}&v=weekly&loading=async`;
+    script.id = "gmaps-js";
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${MAPS_KEY}&v=quarterly`;
     script.async = true;
     script.defer = true;
     script.onload = () => resolve();
@@ -28,19 +46,11 @@ function injectBootstrap(): Promise<void> {
   });
 }
 
-/**
- * Load the Google Maps JS API and the "maps" library. With the async loader the
- * constructors (Map, Marker, Circle) only exist after importLibrary resolves,
- * so we await it before reporting ready.
- */
 async function ensureMaps(): Promise<void> {
-  const w = window as unknown as {
-    google?: { maps?: { Map?: unknown; importLibrary?: (name: string) => Promise<unknown> } };
-  };
+  const w = window as unknown as { google?: { maps?: { Map?: unknown } } };
   if (w.google?.maps?.Map) return;
-  if (!loadPromise) loadPromise = injectBootstrap();
+  if (!loadPromise) loadPromise = loadScript();
   await loadPromise;
-  await w.google!.maps!.importLibrary!("maps");
 }
 
 /** Loads the Google Maps JS API once and reports readiness. */
