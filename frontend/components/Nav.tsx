@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { LiveIndicator } from "./LiveIndicator";
 
 const LINKS = [
-  { href: "/", label: "Command Center" },
+  { href: "/dashboard", label: "Command Center" },
   { href: "/scoreboard", label: "Scoreboard" },
 ];
 
@@ -17,13 +17,13 @@ export function Nav() {
     <header>
       {/* Brand row */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+        <Link href="/" className="flex items-center gap-3">
           {/* Brand mark: a quiet amber tick */}
           <span className="h-7 w-[3px] rounded-full bg-accent md:h-8" />
           <span className="font-display text-3xl font-semibold tracking-tightish text-primary md:text-4xl">
             Prahari
           </span>
-        </div>
+        </Link>
         <LiveIndicator />
       </div>
 
