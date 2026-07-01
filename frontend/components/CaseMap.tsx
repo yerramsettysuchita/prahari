@@ -11,8 +11,8 @@ import { RoutedDept } from "./RoutedDept";
 import { EscalationStatus } from "./EscalationStatus";
 import { SilenceTimer } from "./SilenceTimer";
 
-const ACCENT = "#e8b23a";
-const POSITIVE = "#6fae7e";
+const ACCENT = "#d97706";
+const POSITIVE = "#16a34a";
 
 function markerColor(c: Case): string {
   return c.status === "verified_resolved" ? POSITIVE : ACCENT;
@@ -58,7 +58,7 @@ export function CaseMap({
       disableDefaultUI: true,
       zoomControl: true,
       gestureHandling: "greedy",
-      backgroundColor: "#0e0f0d",
+      backgroundColor: "#f5f3ee",
     });
   }, [status]);
 
@@ -254,7 +254,7 @@ function dotIcon(color: string, scale: number): google.maps.Symbol {
     scale,
     fillColor: color,
     fillOpacity: 1,
-    strokeColor: "#0e0f0d",
+    strokeColor: "#ffffff",
     strokeWeight: 2,
   };
 }

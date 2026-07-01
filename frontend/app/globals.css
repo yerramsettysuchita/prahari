@@ -3,14 +3,16 @@
 @tailwind utilities;
 
 :root {
-  /* Design tokens — the entire Prahari palette. One accent, used sparingly. */
-  --ink: #0e0f0d; /* background ink */
-  --surface: #1a1b17; /* card surface */
-  --line: #2a2b26; /* 1px hairline border */
-  --text-primary: #f4f2ec; /* warm off-white, never pure white */
-  --text-muted: #8b8c84;
-  --accent: #e8b23a; /* amber — alerts, escalation, key metric only */
-  --positive: #6fae7e; /* resolved / positive state only */
+  /* Design tokens. Light civic theme with a disciplined set of pops. */
+  --ink: #f5f3ee; /* warm paper background */
+  --surface: #ffffff; /* card surface */
+  --line: #e6e1d6; /* 1px hairline border */
+  --text-primary: #1b1a16; /* warm near black */
+  --text-muted: #6e6a62;
+  --accent: #d97706; /* amber, primary action and key metric */
+  --positive: #16a34a; /* resolved and positive state */
+  --danger: #dc2626; /* alert, high severity, public escalation */
+  --brand: #2563eb; /* civic blue, verified info and links */
 }
 
 @layer base {
@@ -39,7 +41,7 @@
 
   ::selection {
     background-color: var(--accent);
-    color: var(--ink);
+    color: #ffffff;
   }
 }
 

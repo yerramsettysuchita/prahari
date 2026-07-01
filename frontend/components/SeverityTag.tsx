@@ -1,14 +1,14 @@
 import type { Severity } from "@/lib/api";
 
 /**
- * Small severity tag. High severity carries the amber accent; medium and low
+ * Small severity tag. High severity carries a clear red alert; medium and low
  * stay quiet so the eye goes to what is dangerous.
  */
 export function SeverityTag({ severity }: { severity: Severity }) {
   const styles: Record<Severity, string> = {
-    high: "border-accent/40 bg-accent/10 text-accent",
-    medium: "border-line bg-surface text-primary",
-    low: "border-line bg-surface text-muted",
+    high: "border-danger/40 bg-danger/10 text-danger",
+    medium: "border-line bg-ink text-primary",
+    low: "border-line bg-ink text-muted",
   };
   return (
     <span

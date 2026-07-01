@@ -96,7 +96,7 @@ function VerifiedChip({
       type="button"
       onClick={onClick}
       title={title}
-      className="inline-flex items-center gap-1 rounded-md border border-line bg-ink px-2 py-0.5 font-body text-[11px] font-medium uppercase tracking-[0.08em] text-muted transition-colors hover:border-accent/50 hover:text-primary"
+      className="inline-flex items-center gap-1 rounded-md border border-brand/30 bg-brand/10 px-2 py-0.5 font-body text-[11px] font-medium uppercase tracking-[0.08em] text-brand transition-colors hover:bg-brand/15"
     >
       <CheckMark />
       Source verified
@@ -112,7 +112,7 @@ function CheckMark() {
       viewBox="0 0 12 12"
       fill="none"
       aria-hidden="true"
-      className="text-muted"
+      className="text-brand"
     >
       <path
         d="M2.5 6.5l2.2 2.2L9.5 3.8"

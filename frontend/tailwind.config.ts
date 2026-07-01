@@ -14,8 +14,10 @@ const config: Config = {
         line: "var(--line)", // 1px hairline borders
         primary: "var(--text-primary)", // warm off-white, never pure white
         muted: "var(--text-muted)",
-        accent: "var(--accent)", // amber for alerts, escalation, one key metric
+        accent: "var(--accent)", // amber for primary action and key metric
         positive: "var(--positive)", // resolved / positive only
+        danger: "var(--danger)", // alert, high severity, public escalation
+        brand: "var(--brand)", // civic blue for verified info and links
       },
       fontFamily: {
         display: ["var(--font-display)", "Georgia", "serif"],
@@ -26,8 +28,8 @@ const config: Config = {
         lg: "0.625rem",
       },
       boxShadow: {
-        // The only shadow allowed: a single soft, subtle lift.
-        soft: "0 1px 2px rgba(0,0,0,0.4), 0 8px 24px -12px rgba(0,0,0,0.5)",
+        // A soft, subtle lift tuned for the light theme.
+        soft: "0 1px 2px rgba(17,16,12,0.04), 0 10px 30px -14px rgba(17,16,12,0.12)",
       },
       keyframes: {
         "pulse-soft": {
