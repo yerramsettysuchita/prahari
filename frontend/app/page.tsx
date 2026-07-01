@@ -15,6 +15,9 @@ import { CaseMap } from "@/components/CaseMap";
 import { CaseList } from "@/components/CaseList";
 import { VerifyPanel } from "@/components/VerifyPanel";
 
+const CACHE_KEY = "prahari_cases_v1";
+const CACHE_INSIGHTS = "prahari_insights_v1";
+
 export default function Home() {
   const [cases, setCases] = useState<Case[]>([]);
   const [insights, setInsights] = useState<WardInsight[]>([]);
@@ -26,17 +29,30 @@ export default function Home() {
       const [next, ins] = await Promise.all([fetchCases(), fetchInsights()]);
       setCases(next);
       setInsights(ins);
+      try {
+        localStorage.setItem(CACHE_KEY, JSON.stringify(next));
+        localStorage.setItem(CACHE_INSIGHTS, JSON.stringify(ins));
+      } catch {}
     } catch {
-      // Backend may not be running yet; the empty state covers this.
-      setCases([]);
+      // Backend may be waking (free tier cold start); keep whatever we have.
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
+    // Paint instantly from the last known data, then refresh in the background.
+    try {
+      const c = localStorage.getItem(CACHE_KEY);
+      const i = localStorage.getItem(CACHE_INSIGHTS);
+      if (c) {
+        setCases(JSON.parse(c));
+        setLoading(false);
+      }
+      if (i) setInsights(JSON.parse(i));
+    } catch {}
     load();
-    const id = setInterval(load, 8000); // keep the board live
+    const id = setInterval(load, 10000); // keep the board live
     return () => clearInterval(id);
   }, [load]);
 

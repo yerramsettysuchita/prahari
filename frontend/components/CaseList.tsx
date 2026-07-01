@@ -40,7 +40,10 @@ export function CaseList({
 
       {loading && cases.length === 0 ? (
         <div className="px-5 py-10">
-          <p className="font-body text-sm text-muted">Loading cases.</p>
+          <p className="font-body text-sm text-muted">
+            Loading live data. The first request in a while can take up to a
+            minute while the server wakes.
+          </p>
         </div>
       ) : cases.length === 0 ? (
         <div className="px-5 py-12 text-center">

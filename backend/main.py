@@ -30,6 +30,7 @@ from agents.escalation_agent import (
     MAX_LEVEL,
     PUBLIC_LEVEL,
     draft_for_level,
+    initial_draft,
     initial_sla,
     is_past_sla,
     should_threshold_escalate,
@@ -218,11 +219,11 @@ async def create_report(
         "classificationConfidence": result["confidence"],
     }
 
-    # 5) escalation_agent sets the SLA (above) and drafts the level 0 grievance,
-    #    grounded in the routed facts. Never blocks the report on failure.
-    initial_draft = draft_for_level(0, case)
-    case["grievanceDraft"] = initial_draft["text"]
-    case["escalations"] = [initial_draft]
+    # 5) escalation_agent sets the SLA (above) and files the level 0 grievance.
+    #    Deterministic so submission is fast; richer drafts come on escalation.
+    filed = initial_draft(case)
+    case["grievanceDraft"] = filed["text"]
+    case["escalations"] = [filed]
 
     db.collection("cases").document(case_id).set(case)
     bigquery_sync.upsert_case(case)

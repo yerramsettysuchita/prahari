@@ -161,6 +161,20 @@ def _client():
         return None
 
 
+def initial_draft(case: dict) -> EscalationDraft:
+    """The level 0 Filed grievance, generated deterministically (no model call)
+    so report submission stays fast. The text is grounded in the case facts."""
+    now = datetime.now(timezone.utc).isoformat()
+    return EscalationDraft(
+        level=0,
+        label=LADDER[0],
+        draftType=LADDER[0],
+        text=_fallback_text(0, case),
+        generatedAt=now,
+        grounded=True,
+    )
+
+
 def draft_for_level(level: int, case: dict) -> EscalationDraft:
     """Generate the grounded drafted text for a ladder level. Never raises."""
     level = max(0, min(MAX_LEVEL, int(level)))

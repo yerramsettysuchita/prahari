@@ -138,12 +138,15 @@ def ward_insights(cases: list[dict]) -> list[WardInsight]:
         print(f"[insight_agent] aggregation failed: {exc}")
         return []
 
-    client = _client()
+    # The grounded heuristic is instant and is used for every request so the
+    # polled /insights endpoint stays fast. The richer model read is opt in via
+    # INSIGHTS_USE_MODEL=1 for a one off run, never on the hot polling path.
+    use_model = os.environ.get("INSIGHTS_USE_MODEL") == "1"
+    client = _client() if use_model else None
     out: list[WardInsight] = []
     for agg in aggregates:
         # Heuristic is the grounded baseline and the guaranteed fallback.
         level, note = _heuristic_risk(agg)
-        # Only spend a model call on high-load wards worth a richer read.
         if client is not None and agg.get("openCount", 0) >= HIGH_LOAD_OPEN:
             model = _model_risk(client, agg)
             if model is not None:
