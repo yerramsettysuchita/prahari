@@ -175,6 +175,21 @@ def initial_draft(case: dict) -> EscalationDraft:
     )
 
 
+def draft_offline(level: int, case: dict) -> EscalationDraft:
+    """A grounded draft for a ladder level built deterministically, with no
+    model call. Used by the autonomous tick so scheduled escalations stay fast
+    and never consume model quota."""
+    level = max(0, min(MAX_LEVEL, int(level)))
+    return EscalationDraft(
+        level=level,
+        label=LADDER[level],
+        draftType=LADDER[level],
+        text=_fallback_text(level, case),
+        generatedAt=datetime.now(timezone.utc).isoformat(),
+        grounded=True,
+    )
+
+
 def draft_for_level(level: int, case: dict) -> EscalationDraft:
     """Generate the grounded drafted text for a ladder level. Never raises."""
     level = max(0, min(MAX_LEVEL, int(level)))

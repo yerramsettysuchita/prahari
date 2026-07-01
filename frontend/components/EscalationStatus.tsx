@@ -115,6 +115,16 @@ export function EscalationStatus({
         ) : null}
       </div>
 
+      {active &&
+      (caseItem.lastEscalationReason === "sla" ||
+        caseItem.lastEscalationReason === "threshold") ? (
+        <p className="mt-1.5 font-body text-xs text-muted">
+          {caseItem.lastEscalationReason === "threshold"
+            ? "Escalated autonomously when the citizens threshold was crossed."
+            : "Escalated autonomously by the system past its deadline."}
+        </p>
+      ) : null}
+
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <button
           onClick={() => setShowDrafts(true)}

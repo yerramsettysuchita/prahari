@@ -31,6 +31,7 @@ from agents.escalation_agent import (
     MAX_LEVEL,
     PUBLIC_LEVEL,
     draft_for_level,
+    draft_offline,
     generate_rti_draft,
     initial_draft,
     initial_sla,
@@ -380,7 +381,14 @@ def _escalate_case(db, case_id: str, target_level: int, *, reason: str):
         if reason == "manual":
             new_level = min(MAX_LEVEL, current + 1)
 
-        draft = draft_for_level(new_level, case)
+        # Autonomous and SLA escalations use the deterministic offline draft so
+        # the scheduled tick stays fast and never spends model quota. A manual
+        # advance uses the richer model draft.
+        draft = (
+            draft_for_level(new_level, case)
+            if reason == "manual"
+            else draft_offline(new_level, case)
+        )
         now = datetime.now(timezone.utc).isoformat()
 
         update = {
@@ -448,6 +456,55 @@ def advance_escalation(case_id: str) -> dict:
     if result is None:
         raise HTTPException(status_code=404, detail="Case not found or already resolved.")
     return {"advanced": True, "escalation": result["escalation"], "case": result["case"]}
+
+
+@app.api_route("/cron/tick", methods=["GET", "POST"])
+def cron_tick(key: Optional[str] = None) -> dict:
+    """Autonomous long-running agent tick.
+
+    Re-checks every open case against its SLA deadline and, for any case that is
+    past due and not resolved, advances it one escalation rung with no human in
+    the loop. Meant to be called on a schedule (Cloud Scheduler when billing is
+    on, or a free cron pinger otherwise). It also wakes the service, so it works
+    as a keep-alive too. Never crashes.
+
+    Protect it by setting CRON_SECRET in the environment and passing ?key=SECRET.
+    """
+    secret = os.environ.get("CRON_SECRET")
+    if secret and key != secret:
+        raise HTTPException(status_code=403, detail="Invalid cron key.")
+
+    db = get_db()
+    if db is None:
+        return {"ok": False, "reason": "Firestore not configured."}
+
+    cases = _all_cases(db)
+    escalated = []
+    for c in cases:
+        if c.get("status") == "verified_resolved":
+            continue
+        level = int(c.get("escalationLevel", 0) or 0)
+        if level >= MAX_LEVEL:
+            continue
+        if not is_past_sla(c.get("slaDeadline")):
+            continue
+        res = _escalate_case(db, c.get("id"), level + 1, reason="sla")
+        if res is not None:
+            fresh = res["case"]
+            escalated.append(
+                {
+                    "id": c.get("id"),
+                    "level": fresh.get("escalationLevel"),
+                    "label": fresh.get("escalationLabel"),
+                }
+            )
+
+    return {
+        "ok": True,
+        "checked": len(cases),
+        "escalatedCount": len(escalated),
+        "escalated": escalated,
+    }
 
 
 @app.post("/cases/{case_id}/rti-draft")
