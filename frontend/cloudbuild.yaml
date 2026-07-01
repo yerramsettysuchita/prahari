@@ -1,0 +1,28 @@
+# Cloud Build config for the Prahari frontend on Cloud Run.
+# NEXT_PUBLIC_* values are inlined at build time, so they are passed as build
+# args via substitutions. The backend URL is passed in at deploy time.
+steps:
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - "build"
+      - "--build-arg"
+      - "NEXT_PUBLIC_API_BASE=${_API_BASE}"
+      - "--build-arg"
+      - "NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=${_MAPS_KEY}"
+      - "--build-arg"
+      - "NEXT_PUBLIC_FIREBASE_API_KEY=${_FB_API_KEY}"
+      - "--build-arg"
+      - "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=prahari-eb12a.firebaseapp.com"
+      - "--build-arg"
+      - "NEXT_PUBLIC_FIREBASE_PROJECT_ID=prahari-eb12a"
+      - "--build-arg"
+      - "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=prahari-eb12a.firebasestorage.app"
+      - "--build-arg"
+      - "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=575137430782"
+      - "--build-arg"
+      - "NEXT_PUBLIC_FIREBASE_APP_ID=1:575137430782:web:90cadbc994b6d30dfcf9af"
+      - "-t"
+      - "${_IMAGE}"
+      - "."
+images:
+  - "${_IMAGE}"
