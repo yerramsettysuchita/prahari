@@ -21,7 +21,7 @@ from typing import Optional
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
-from agents.intake_agent import classify_intake
+from agents.intake_agent import classify_intake, transcribe_voice
 from agents.verification_agent import verify_classification
 from agents.dedup_agent import find_duplicate
 from agents.resolution_agent import verify_resolution
@@ -101,6 +101,7 @@ async def create_report(
     note: Optional[str] = Form(None),
     ward: Optional[str] = Form(None),
     image: Optional[UploadFile] = File(None),
+    audio: Optional[UploadFile] = File(None),
 ) -> dict:
     """Intake a road issue: store the photo, classify it, persist the case.
 
@@ -122,6 +123,20 @@ async def create_report(
     if image is not None:
         image_bytes = await image.read()
         content_type = image.content_type or content_type
+
+    # Voice reporting: transcribe a local-language voice note (Kannada, Hindi,
+    # or English) and fold the English translation into the note used for
+    # classification. Never blocks the report on failure.
+    voice = {"language": "", "spokenText": "", "englishText": ""}
+    if audio is not None:
+        audio_bytes = await audio.read()
+        voice = transcribe_voice(audio_bytes, audio.content_type or "audio/webm")
+        if voice.get("englishText"):
+            note = (
+                f"{note.strip()} {voice['englishText']}".strip()
+                if note and note.strip()
+                else voice["englishText"]
+            )
 
     case_id = uuid.uuid4().hex
     now = datetime.now(timezone.utc).isoformat()
@@ -158,6 +173,17 @@ async def create_report(
             "flagged" if verification["needsCommunity"] else "done",
         ),
     ]
+
+    # When a voice note was given, the voice step leads the trace.
+    if voice.get("englishText"):
+        trace.insert(
+            0,
+            _step(
+                "Voice agent",
+                f"Transcribed a {voice.get('language') or 'local language'} voice note",
+                voice["englishText"],
+            ),
+        )
 
     # 3) Dedup BEFORE creating a new case. A failure here falls back to a new
     #    case; it must never block a report.
@@ -238,6 +264,7 @@ async def create_report(
                 },
                 "autoEscalation": auto["escalation"] if auto else None,
                 "verification": verification,
+                "voice": voice,
                 "trace": trace,
                 "case": fresh,
             }
@@ -291,6 +318,9 @@ async def create_report(
         "description": result["description"],
         "classificationConfidence": result["confidence"],
         "needsCommunity": verification["needsCommunity"],
+        "voiceLanguage": voice.get("language") or None,
+        "voiceSpoken": voice.get("spokenText") or None,
+        "voiceTranscript": voice.get("englishText") or None,
     }
 
     # 5) escalation_agent sets the SLA (above) and files the level 0 grievance.
@@ -313,6 +343,7 @@ async def create_report(
         "case": case,
         "dedup": {"reasoning": dedup["reasoning"]},
         "verification": verification,
+        "voice": voice,
         "trace": trace,
     }
 

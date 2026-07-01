@@ -13,6 +13,7 @@ import { SeverityTag } from "./SeverityTag";
 import { useCountUp } from "./useCountUp";
 import { RoutedDept } from "./RoutedDept";
 import { AgentTrace } from "./AgentTrace";
+import { useVoiceRecorder } from "./useVoiceRecorder";
 
 type Coords = { lat: number; lng: number };
 
@@ -27,6 +28,7 @@ export function ReportPanel({ onCreated }: { onCreated: (c: Case) => void }) {
   const [result, setResult] = useState<ReportResult | null>(null);
   const [dragging, setDragging] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
+  const voice = useVoiceRecorder();
 
   const pickImage = useCallback((file: File | undefined | null) => {
     if (!file) return;
@@ -57,10 +59,12 @@ export function ReportPanel({ onCreated }: { onCreated: (c: Case) => void }) {
     );
   }, []);
 
-  const canSubmit = !!image && !!coords && !submitting;
+  // A photo or a voice note, plus a location, is enough to submit.
+  const canSubmit =
+    !!coords && (!!image || !!voice.audioFile) && !submitting && !voice.recording;
 
   const submit = useCallback(async () => {
-    if (!image || !coords) return;
+    if (!coords || (!image && !voice.audioFile)) return;
     setSubmitting(true);
     setError(null);
     setResult(null);
@@ -70,9 +74,11 @@ export function ReportPanel({ onCreated }: { onCreated: (c: Case) => void }) {
         lng: coords.lng,
         note: note.trim() || undefined,
         image,
+        audio: voice.audioFile,
       });
       setResult(outcome);
       onCreated(outcome.case);
+      voice.reset();
     } catch (e) {
       setError(
         e instanceof Error
@@ -82,7 +88,7 @@ export function ReportPanel({ onCreated }: { onCreated: (c: Case) => void }) {
     } finally {
       setSubmitting(false);
     }
-  }, [image, coords, note, onCreated]);
+  }, [image, coords, note, onCreated, voice]);
 
   return (
     <section className="rounded-lg border border-line bg-surface p-6 shadow-soft">
@@ -189,6 +195,52 @@ export function ReportPanel({ onCreated }: { onCreated: (c: Case) => void }) {
         </div>
       </div>
 
+      {/* Voice note */}
+      <div className="mt-6">
+        <label className="font-body text-xs font-medium uppercase tracking-[0.14em] text-muted">
+          Voice note (optional)
+        </label>
+        <p className="mt-1 font-body text-xs text-muted">
+          Speak in Kannada, Hindi, or English. An agent transcribes and
+          translates it.
+        </p>
+        <div className="mt-2 flex flex-wrap items-center gap-3">
+          {!voice.recording ? (
+            <button
+              type="button"
+              onClick={voice.start}
+              disabled={submitting || voice.processing}
+              className="inline-flex items-center gap-2 rounded-lg border border-line bg-ink px-4 py-2 font-body text-sm font-medium text-primary transition-colors hover:border-accent/60 disabled:opacity-50"
+            >
+              <MicIcon />
+              {voice.audioFile ? "Record again" : "Record"}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={voice.stop}
+              className="inline-flex items-center gap-2 rounded-lg border border-danger/40 bg-danger/10 px-4 py-2 font-body text-sm font-medium text-danger transition-colors"
+            >
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-2 w-2 rounded-full bg-danger animate-pulse-soft" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-danger" />
+              </span>
+              Stop recording
+            </button>
+          )}
+          {voice.processing ? (
+            <span className="font-body text-xs text-muted">Processing audio</span>
+          ) : voice.audioFile ? (
+            <span className="font-body text-xs text-positive">
+              Voice note ready
+            </span>
+          ) : null}
+        </div>
+        {voice.error ? (
+          <p className="mt-2 font-body text-xs text-muted">{voice.error}</p>
+        ) : null}
+      </div>
+
       {/* Note */}
       <div className="mt-6">
         <label className="font-body text-xs font-medium uppercase tracking-[0.14em] text-muted">
@@ -212,9 +264,9 @@ export function ReportPanel({ onCreated }: { onCreated: (c: Case) => void }) {
       >
         Submit report
       </button>
-      {!image || !coords ? (
+      {(!image && !voice.audioFile) || !coords ? (
         <p className="mt-2 font-body text-xs text-muted">
-          A photo and a location are both needed to submit.
+          A photo or a voice note, plus a location, is needed to submit.
         </p>
       ) : null}
 
@@ -261,6 +313,15 @@ export function ReportPanel({ onCreated }: { onCreated: (c: Case) => void }) {
         ) : null}
       </AnimatePresence>
     </section>
+  );
+}
+
+function MicIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="9" y="3" width="6" height="11" rx="3" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M5 11a7 7 0 0014 0M12 18v3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
   );
 }
 

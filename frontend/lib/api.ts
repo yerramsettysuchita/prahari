@@ -53,6 +53,11 @@ export interface Case {
   grievanceChannel?: string | null;
   routingMatched?: boolean;
   provenance?: string | null;
+  // Voice reporting
+  voiceLanguage?: string | null;
+  voiceSpoken?: string | null;
+  voiceTranscript?: string | null;
+  needsCommunity?: boolean;
   // Escalation (STEP 6)
   slaDeadline?: string | null;
   escalationLevel?: number;
@@ -93,6 +98,7 @@ export interface ReportInput {
   note?: string;
   ward?: string;
   image?: File | null;
+  audio?: File | null;
 }
 
 export interface TraceStep {
@@ -115,6 +121,7 @@ export interface ReportResult {
   /** The visible agent trace: which agent ran and what it decided. */
   trace?: TraceStep[];
   verification?: { confident: boolean; needsCommunity: boolean; note: string };
+  voice?: { language: string; spokenText: string; englishText: string };
 }
 
 /** Submit a new report. The backend either creates a case or merges it. */
@@ -125,6 +132,7 @@ export async function submitReport(input: ReportInput): Promise<ReportResult> {
   if (input.note) form.append("note", input.note);
   if (input.ward) form.append("ward", input.ward);
   if (input.image) form.append("image", input.image);
+  if (input.audio) form.append("audio", input.audio);
 
   const res = await fetch(`${API_BASE}/report`, { method: "POST", body: form });
   if (!res.ok) {

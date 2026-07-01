@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import json
 import os
-import traceback
 from typing import Optional, TypedDict
 
 ISSUE_TYPES = ("pothole", "road_crack", "debris", "waterlogging")
@@ -80,17 +79,7 @@ def _client():
     try:
         from google import genai
 
-        google_key = os.environ.get("GOOGLE_API_KEY")
-        gemini_key = os.environ.get("GEMINI_API_KEY")
-        api_key = google_key or gemini_key
-        # TEMP DIAGNOSTIC: which key env is present (never log the value).
-        print(
-            f"[intake_agent][diag] GOOGLE_API_KEY present={bool(google_key)} "
-            f"GEMINI_API_KEY present={bool(gemini_key)} "
-            f"using={'GOOGLE_API_KEY' if google_key else ('GEMINI_API_KEY' if gemini_key else 'none/ADC')} "
-            f"key_len={len(api_key) if api_key else 0} "
-            f"key_prefix={api_key[:3] if api_key else ''}"
-        )
+        api_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
         if api_key:
             return genai.Client(api_key=api_key)
         # Fall back to ADC / Vertex configuration if present.
@@ -107,33 +96,33 @@ def classify_intake(
     lng: float,
     note: Optional[str] = None,
 ) -> IntakeResult:
-    """Classify a road issue. Always returns a result, never raises."""
+    """Classify a road issue from an image and/or a text note (which may be a
+    transcribed voice note). Always returns a result, never raises."""
     client = _client()
-    # TEMP DIAGNOSTIC: surface why classification might short-circuit.
-    print(
-        f"[intake_agent][diag] classify_intake called: client={'ok' if client else 'None'} "
-        f"image_bytes={len(image_bytes) if image_bytes else 0} mime={mime_type}"
-    )
-    if client is None or not image_bytes:
-        print(
-            "[intake_agent][diag] short-circuit to unknown: "
-            f"reason={'no client' if client is None else 'no image bytes'}"
-        )
+    has_text = bool(note and note.strip())
+    if client is None or (not image_bytes and not has_text):
         return _unknown(note)
 
     try:
         from google.genai import types
 
         location_line = f"Location: latitude {lat}, longitude {lng}."
-        note_line = f"Citizen note: {note.strip()}" if note and note.strip() else "Citizen note: none."
+        note_line = (
+            f"Citizen note: {note.strip()}" if has_text else "Citizen note: none."
+        )
 
-        print("[intake_agent][diag] calling Gemini model=gemini-2.5-flash")
+        # Build the multimodal request. The image is included when present; the
+        # note carries the citizen text or a transcribed voice report.
+        contents: list = []
+        if image_bytes:
+            contents.append(
+                types.Part.from_bytes(data=image_bytes, mime_type=mime_type or "image/jpeg")
+            )
+        contents.append(f"{location_line}\n{note_line}\n\nClassify this road issue.")
+
         response = client.models.generate_content(
             model=os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
-            contents=[
-                types.Part.from_bytes(data=image_bytes, mime_type=mime_type or "image/jpeg"),
-                f"{location_line}\n{note_line}\n\nClassify this road issue.",
-            ],
+            contents=contents,
             config=types.GenerateContentConfig(
                 system_instruction=INSTRUCTION,
                 response_mime_type="application/json",
@@ -143,8 +132,6 @@ def classify_intake(
         )
 
         raw = (response.text or "").strip()
-        # TEMP DIAGNOSTIC: log the raw model output before parsing.
-        print(f"[intake_agent][diag] raw model response (first 500 chars): {raw[:500]!r}")
         data = json.loads(raw)
 
         issue = data.get("issueType")
@@ -171,11 +158,63 @@ def classify_intake(
             confidence=confidence,
         )
     except Exception as exc:
-        # TEMP DIAGNOSTIC: surface the full error type and traceback so the
-        # real production failure is visible instead of the silent fallback.
-        print(f"[intake_agent][diag] classification raised {type(exc).__name__}: {exc}")
-        print("[intake_agent][diag] traceback:\n" + traceback.format_exc())
+        print(f"[intake_agent] classification failed: {exc}")
         return _unknown(note)
+
+
+def transcribe_voice(audio_bytes: Optional[bytes], mime_type: str) -> dict:
+    """Transcribe a citizen voice note in a local Indian language and translate
+    it to English, using Gemini audio understanding. Never raises.
+
+    Returns {language, spokenText, englishText}. Empty when unavailable.
+    """
+    result = {"language": "", "spokenText": "", "englishText": ""}
+    client = _client()
+    if client is None or not audio_bytes:
+        return result
+
+    try:
+        from google.genai import types
+
+        schema = {
+            "type": "object",
+            "properties": {
+                "language": {"type": "string"},
+                "spokenText": {"type": "string"},
+                "englishText": {"type": "string"},
+            },
+            "required": ["language", "spokenText", "englishText"],
+        }
+        instruction = (
+            "The audio is a citizen reporting a road issue in an Indian city, "
+            "most likely in Kannada, Hindi, or English. Detect the spoken "
+            "language, transcribe exactly what was said as spokenText in its own "
+            "script, and give a clear English translation as englishText. If the "
+            "audio is unclear, do your best and keep it short. Do not use dashes "
+            "of any kind. Do not use emoji."
+        )
+        response = client.models.generate_content(
+            model=os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
+            contents=[
+                types.Part.from_bytes(
+                    data=audio_bytes, mime_type=mime_type or "audio/webm"
+                ),
+                "Transcribe and translate this civic voice report.",
+            ],
+            config=types.GenerateContentConfig(
+                system_instruction=instruction,
+                response_mime_type="application/json",
+                response_schema=schema,
+                temperature=0.1,
+            ),
+        )
+        data = json.loads((response.text or "").strip())
+        result["language"] = str(data.get("language", "")).strip()
+        result["spokenText"] = str(data.get("spokenText", "")).strip()
+        result["englishText"] = _strip_dashes(str(data.get("englishText", "")).strip())
+    except Exception as exc:
+        print(f"[intake_agent] voice transcription failed: {exc}")
+    return result
 
 
 # --------------------------------------------------------------------------- #
