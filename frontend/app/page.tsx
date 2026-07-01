@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { LiveIndicator } from "@/components/LiveIndicator";
 
 export const metadata = {
@@ -30,25 +29,25 @@ function LandingNav() {
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-ink/80 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <Link href="/" className="flex items-center gap-2.5">
+        <a href="/" className="flex items-center gap-2.5">
           <span className="h-6 w-[3px] rounded-full bg-accent" />
           <span className="font-display text-2xl font-semibold tracking-tightish text-primary">
             Prahari
           </span>
-        </Link>
+        </a>
         <nav className="flex items-center gap-5">
-          <Link
+          <a
             href="/scoreboard"
             className="hidden font-body text-sm text-muted transition-colors hover:text-primary sm:inline"
           >
             Scoreboard
-          </Link>
-          <Link
+          </a>
+          <a
             href="/dashboard"
             className="rounded-lg bg-accent px-4 py-2 font-body text-sm font-semibold text-ink transition-opacity hover:opacity-90"
           >
             Open the command center
-          </Link>
+          </a>
         </nav>
       </div>
     </header>
@@ -76,18 +75,18 @@ function Hero() {
             they actually fix things.
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
-            <Link
+            <a
               href="/dashboard"
               className="rounded-lg bg-accent px-5 py-3 font-body text-sm font-semibold text-ink transition-opacity hover:opacity-90"
             >
               Open the command center
-            </Link>
-            <Link
+            </a>
+            <a
               href="/scoreboard"
               className="rounded-lg border border-line bg-surface px-5 py-3 font-body text-sm font-semibold text-primary transition-colors hover:border-accent/60"
             >
               See the scoreboard
-            </Link>
+            </a>
           </div>
           <div className="mt-8 flex flex-wrap gap-x-8 gap-y-3">
             <Stat value="7" label="AI agents" />
@@ -455,18 +454,18 @@ function FinalCta() {
         public record of who fixed what, and how fast.
       </p>
       <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-        <Link
+        <a
           href="/dashboard"
           className="rounded-lg bg-accent px-6 py-3 font-body text-sm font-semibold text-ink transition-opacity hover:opacity-90"
         >
           Open the command center
-        </Link>
-        <Link
+        </a>
+        <a
           href="/scoreboard"
           className="rounded-lg border border-line bg-surface px-6 py-3 font-body text-sm font-semibold text-primary transition-colors hover:border-accent/60"
         >
           See the scoreboard
-        </Link>
+        </a>
       </div>
     </section>
   );

@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LiveIndicator } from "./LiveIndicator";
 
@@ -17,13 +16,13 @@ export function Nav() {
     <header>
       {/* Brand row */}
       <div className="flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-3">
+        <a href="/" className="flex items-center gap-3">
           {/* Brand mark: a quiet amber tick */}
           <span className="h-7 w-[3px] rounded-full bg-accent md:h-8" />
           <span className="font-display text-3xl font-semibold tracking-tightish text-primary md:text-4xl">
             Prahari
           </span>
-        </Link>
+        </a>
         <LiveIndicator />
       </div>
 
@@ -32,7 +31,7 @@ export function Nav() {
         {LINKS.map((l) => {
           const active = pathname === l.href;
           return (
-            <Link
+            <a
               key={l.href}
               href={l.href}
               className={`group relative -mb-px border-b-2 pb-3 font-body text-sm font-medium transition-colors ${
@@ -42,7 +41,7 @@ export function Nav() {
               }`}
             >
               {l.label}
-            </Link>
+            </a>
           );
         })}
         {/* City scope, right-aligned on the same divider row */}
