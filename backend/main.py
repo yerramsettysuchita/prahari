@@ -22,6 +22,7 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from agents.intake_agent import classify_intake
+from agents.verification_agent import verify_classification
 from agents.dedup_agent import find_duplicate
 from agents.resolution_agent import verify_resolution
 from agents.routing_agent import route_case
@@ -133,6 +134,30 @@ async def create_report(
     # 2) Classify with intake_agent (never raises).
     result = classify_intake(image_bytes, content_type, lat, lng, note)
 
+    # 2b) verification_agent cross-checks the classification confidence.
+    verification = verify_classification(result)
+
+    # Build a visible agent trace as the graph runs, so the multi-agent work is
+    # inspectable rather than hidden. Each step names the agent and its decision.
+    conf_pct = round((result.get("confidence") or 0.0) * 100)
+
+    def _step(agent: str, action: str, outcome: str, status: str = "done") -> dict:
+        return {"agent": agent, "action": action, "result": outcome, "status": status}
+
+    trace = [
+        _step(
+            "Intake agent",
+            "Classified the photo and note",
+            f'{result["issueType"]}, {result["severity"]} severity, {conf_pct} percent confidence',
+        ),
+        _step(
+            "Verification agent",
+            "Cross-checked classification confidence",
+            verification["note"],
+            "flagged" if verification["needsCommunity"] else "done",
+        ),
+    ]
+
     # 3) Dedup BEFORE creating a new case. A failure here falls back to a new
     #    case; it must never block a report.
     try:
@@ -166,6 +191,14 @@ async def create_report(
             # past the citizens threshold within the recent window, the system
             # escalates to public on its own, no human in the loop. This happens
             # live inside the report path so the demo sees it instantly.
+            trace.append(
+                _step(
+                    "Dedup agent",
+                    "Searched open cases within 50 meters",
+                    f"Matched an existing case, now {new_affected} citizens affected",
+                )
+            )
+
             auto = None
             if should_threshold_escalate(fresh, new_affected):
                 auto = _escalate_case(
@@ -173,6 +206,24 @@ async def create_report(
                 )
                 if auto is not None:
                     fresh = auto["case"]
+
+            if auto is not None:
+                trace.append(
+                    _step(
+                        "Escalation agent",
+                        "Reacted to the citizens threshold",
+                        "Threshold crossed, escalated to public automatically",
+                        "alert",
+                    )
+                )
+            else:
+                trace.append(
+                    _step(
+                        "Escalation agent",
+                        "Updated the tracked case",
+                        "Merged into the existing grievance",
+                    )
+                )
 
             return {
                 "merged": True,
@@ -185,13 +236,33 @@ async def create_report(
                     "provenance": "gemini-2.5-flash dedup within 50 meters",
                 },
                 "autoEscalation": auto["escalation"] if auto else None,
+                "verification": verification,
+                "trace": trace,
                 "case": fresh,
             }
         # If the merge target vanished, fall through and create a new case.
 
     # 4) Not a duplicate: route it against the grounded KB (never invents), then
     #    write the enriched case to Firestore.
+    trace.append(
+        _step(
+            "Dedup agent",
+            "Searched open cases within 50 meters",
+            "No duplicate nearby, creating a new case",
+        )
+    )
+
     routing = route_case(result["issueType"], lat, lng, ward)
+    trace.append(
+        _step(
+            "Routing agent",
+            "Matched against the grounded knowledge base",
+            f'{routing["ward"]}, {routing["routedDept"]}'
+            if routing["matched"]
+            else "No verified routing found",
+            "done" if routing["matched"] else "unknown",
+        )
+    )
 
     case = {
         "id": case_id,
@@ -218,6 +289,7 @@ async def create_report(
         "verifiedResolved": False,
         "description": result["description"],
         "classificationConfidence": result["confidence"],
+        "needsCommunity": verification["needsCommunity"],
     }
 
     # 5) escalation_agent sets the SLA (above) and files the level 0 grievance.
@@ -225,10 +297,23 @@ async def create_report(
     filed = initial_draft(case)
     case["grievanceDraft"] = filed["text"]
     case["escalations"] = [filed]
+    trace.append(
+        _step(
+            "Escalation agent",
+            "Filed the grievance and started the SLA",
+            "Level 0 filed, silence clock running",
+        )
+    )
 
     db.collection("cases").document(case_id).set(case)
     bigquery_sync.upsert_case(case)
-    return {"merged": False, "case": case, "dedup": {"reasoning": dedup["reasoning"]}}
+    return {
+        "merged": False,
+        "case": case,
+        "dedup": {"reasoning": dedup["reasoning"]},
+        "verification": verification,
+        "trace": trace,
+    }
 
 
 def _merge_into_case(

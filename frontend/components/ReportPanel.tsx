@@ -12,6 +12,7 @@ import { LoadingLine } from "./LoadingLine";
 import { SeverityTag } from "./SeverityTag";
 import { useCountUp } from "./useCountUp";
 import { RoutedDept } from "./RoutedDept";
+import { AgentTrace } from "./AgentTrace";
 
 type Coords = { lat: number; lng: number };
 
@@ -246,8 +247,11 @@ export function ReportPanel({ onCreated }: { onCreated: (c: Case) => void }) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-            className="mt-6"
+            className="mt-6 space-y-4"
           >
+            {result.trace && result.trace.length > 0 ? (
+              <AgentTrace steps={result.trace} />
+            ) : null}
             {result.merged ? (
               <MergedOutcome result={result} />
             ) : (

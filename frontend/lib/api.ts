@@ -95,6 +95,13 @@ export interface ReportInput {
   image?: File | null;
 }
 
+export interface TraceStep {
+  agent: string;
+  action: string;
+  result: string;
+  status: "done" | "flagged" | "unknown" | "alert";
+}
+
 export interface ReportResult {
   merged: boolean;
   case: Case;
@@ -105,6 +112,9 @@ export interface ReportResult {
   dedup?: { reasoning?: string; confidence?: number; provenance?: string };
   /** Present when a live merge crossed the threshold and auto-escalated. */
   autoEscalation?: EscalationDraft | null;
+  /** The visible agent trace: which agent ran and what it decided. */
+  trace?: TraceStep[];
+  verification?: { confident: boolean; needsCommunity: boolean; note: string };
 }
 
 /** Submit a new report. The backend either creates a case or merges it. */
