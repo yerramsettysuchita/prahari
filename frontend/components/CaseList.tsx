@@ -3,6 +3,7 @@
 import { Case, ISSUE_LABEL, timeAgo } from "@/lib/api";
 import { SeverityTag } from "./SeverityTag";
 import { RoutedDept } from "./RoutedDept";
+import { SilenceTimer } from "./SilenceTimer";
 
 export function CaseList({
   cases,
@@ -100,6 +101,9 @@ export function CaseList({
                       : "citizens affected"}
                   </span>
                 </p>
+                <div className="mt-1">
+                  <SilenceTimer caseItem={c} compact />
+                </div>
                 <div className="mt-1.5">
                   <RoutedDept caseItem={c} compact />
                 </div>

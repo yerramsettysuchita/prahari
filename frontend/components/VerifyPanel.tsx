@@ -252,7 +252,7 @@ function Frame({
         editable ? "cursor-pointer" : ""
       } ${dragging ? "ring-1 ring-accent" : ""}`}
     >
-      <span className="absolute left-3 top-3 z-10 rounded-md border border-line bg-ink/80 px-2 py-0.5 font-body text-[11px] font-medium uppercase tracking-[0.12em] text-muted">
+      <span className="absolute left-3 top-3 z-10 rounded-md bg-primary px-2 py-0.5 font-body text-[11px] font-semibold uppercase tracking-[0.12em] text-ink">
         {label}
       </span>
       {src ? (

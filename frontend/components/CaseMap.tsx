@@ -9,6 +9,7 @@ import { SeverityTag } from "./SeverityTag";
 import { useCountUp } from "./useCountUp";
 import { RoutedDept } from "./RoutedDept";
 import { EscalationStatus } from "./EscalationStatus";
+import { SilenceTimer } from "./SilenceTimer";
 
 const ACCENT = "#e8b23a";
 const POSITIVE = "#6fae7e";
@@ -189,6 +190,10 @@ export function CaseMap({
               <p className="font-body text-xs tabular-nums text-muted">
                 {timeAgo(selected.createdAt)}
               </p>
+            </div>
+
+            <div className="mt-3">
+              <SilenceTimer caseItem={selected} />
             </div>
 
             <div className="mt-3">
