@@ -57,7 +57,10 @@ export interface Case {
   voiceLanguage?: string | null;
   voiceSpoken?: string | null;
   voiceTranscript?: string | null;
+  // Community co-sign
   needsCommunity?: boolean;
+  communityConfirmations?: number;
+  communityConfirmed?: boolean;
   // Escalation (STEP 6)
   slaDeadline?: string | null;
   escalationLevel?: number;
@@ -254,6 +257,23 @@ export async function fetchInsights(): Promise<WardInsight[]> {
   } catch {
     return [];
   }
+}
+
+export interface CosignResponse {
+  case: Case;
+  autoEscalation?: EscalationDraft | null;
+}
+
+/** Community co-sign: confirm you see this issue too. */
+export async function cosignCase(caseId: string): Promise<CosignResponse> {
+  const res = await fetch(`${API_BASE}/cases/${caseId}/cosign`, {
+    method: "POST",
+  });
+  if (!res.ok) {
+    const detail = await safeDetail(res);
+    throw new Error(detail || `Could not co-sign (${res.status})`);
+  }
+  return res.json();
 }
 
 /** Remove a single case. */

@@ -489,6 +489,59 @@ def advance_escalation(case_id: str) -> dict:
     return {"advanced": True, "escalation": result["escalation"], "case": result["case"]}
 
 
+@app.post("/cases/{case_id}/cosign")
+def cosign_case(case_id: str) -> dict:
+    """Community co-sign. Another citizen taps "I see this too", which raises
+    citizensAffected and the community confirmation count. Once enough citizens
+    confirm a low-confidence case, the verification flag is cleared and the case
+    is marked community confirmed. Crossing the citizens threshold can also
+    trigger the real-time escalation. Never crashes.
+    """
+    db = get_db()
+    if db is None:
+        raise HTTPException(status_code=503, detail="Firestore not configured.")
+
+    from firebase_admin import firestore as _fs
+
+    ref = db.collection("cases").document(case_id)
+    snap = ref.get()
+    if not snap.exists:
+        raise HTTPException(status_code=404, detail="Case not found.")
+    case = snap.to_dict()
+    if case.get("status") == "verified_resolved":
+        return {"case": case, "autoEscalation": None}
+
+    target = int(os.environ.get("COMMUNITY_CONFIRM_TARGET", "3"))
+    now = datetime.now(timezone.utc).isoformat()
+    confirmations = int(case.get("communityConfirmations", 0) or 0) + 1
+
+    update: dict = {
+        "citizensAffected": _fs.Increment(1),
+        "communityConfirmations": _fs.Increment(1),
+        "updatedAt": now,
+        "cosigners": _fs.ArrayUnion([{"at": now}]),
+    }
+    # Community verification: enough citizens agree, so clear the flag.
+    if case.get("needsCommunity") and confirmations >= target:
+        update["needsCommunity"] = False
+        update["communityConfirmed"] = True
+
+    ref.update(update)
+    fresh = ref.get().to_dict()
+    bigquery_sync.upsert_case(fresh)
+
+    # Real-time threshold escalation on the new affected count.
+    auto = None
+    new_affected = fresh.get("citizensAffected", 1)
+    if should_threshold_escalate(fresh, new_affected):
+        res = _escalate_case(db, case_id, PUBLIC_LEVEL, reason="threshold")
+        if res is not None:
+            fresh = res["case"]
+            auto = res["escalation"]
+
+    return {"case": fresh, "autoEscalation": auto}
+
+
 @app.api_route("/cron/tick", methods=["GET", "POST"])
 def cron_tick(key: Optional[str] = None) -> dict:
     """Autonomous long-running agent tick.

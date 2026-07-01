@@ -29,11 +29,13 @@ export function CaseMap({
   insights = [],
   onVerify,
   onUpdated,
+  onCosign,
 }: {
   cases: Case[];
   insights?: WardInsight[];
   onVerify: (c: Case) => void;
   onUpdated: (c: Case) => void;
+  onCosign: (c: Case) => void;
 }) {
   const { status } = useGoogleMaps();
   const mapDiv = useRef<HTMLDivElement>(null);
@@ -191,6 +193,32 @@ export function CaseMap({
                 {timeAgo(selected.createdAt)}
               </p>
             </div>
+
+            {selected.status !== "verified_resolved" ? (
+              <div className="mt-3 flex items-center justify-between gap-3 border-t border-line pt-3">
+                <div className="min-w-0">
+                  {selected.communityConfirmed ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-md border border-brand/30 bg-brand/10 px-2 py-0.5 font-body text-[11px] font-medium uppercase tracking-[0.08em] text-brand">
+                      Community confirmed
+                    </span>
+                  ) : selected.needsCommunity ? (
+                    <span className="font-body text-xs text-muted">
+                      Awaiting community confirmation
+                    </span>
+                  ) : (
+                    <span className="font-body text-xs text-muted">
+                      {selected.communityConfirmations ?? 0} confirmed by citizens
+                    </span>
+                  )}
+                </div>
+                <button
+                  onClick={() => onCosign(selected)}
+                  className="shrink-0 rounded-md border border-brand/40 bg-brand/10 px-2.5 py-1 font-body text-xs font-medium text-brand transition-colors hover:bg-brand/15"
+                >
+                  I see this too
+                </button>
+              </div>
+            ) : null}
 
             <div className="mt-3">
               <SilenceTimer caseItem={selected} />

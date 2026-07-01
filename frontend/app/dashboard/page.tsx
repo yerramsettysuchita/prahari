@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   Case,
   clearAllCases,
+  cosignCase,
   deleteCase,
   fetchCases,
   fetchInsights,
@@ -67,6 +68,28 @@ export default function Dashboard() {
     setCases((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
   }, []);
 
+  // Community co-sign: bump the count optimistically, then reconcile.
+  const handleCosign = useCallback(
+    async (c: Case) => {
+      setCases((prev) =>
+        prev.map((p) =>
+          p.id === c.id
+            ? { ...p, citizensAffected: (p.citizensAffected ?? 1) + 1 }
+            : p
+        )
+      );
+      try {
+        const res = await cosignCase(c.id);
+        setCases((prev) =>
+          prev.map((p) => (p.id === res.case.id ? res.case : p))
+        );
+      } catch {
+        load();
+      }
+    },
+    [load]
+  );
+
   // Remove a single case, optimistically.
   const handleRemove = useCallback(
     async (c: Case) => {
@@ -115,6 +138,7 @@ export default function Dashboard() {
             insights={insights}
             onVerify={setVerifying}
             onUpdated={handleVerified}
+            onCosign={handleCosign}
           />
           <CaseList
             cases={cases}
