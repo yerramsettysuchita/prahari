@@ -60,10 +60,19 @@ export interface Case {
   grievanceDraft?: string;
   escalations?: EscalationDraft[];
   lastEscalationReason?: string;
+  rtiDraft?: RtiDraft;
 }
 
 export interface EscalationDraft {
   level: number;
+  label: string;
+  draftType: string;
+  text: string;
+  generatedAt: string;
+  grounded: boolean;
+}
+
+export interface RtiDraft {
   label: string;
   draftType: string;
   text: string;
@@ -247,6 +256,19 @@ export async function clearAllCases(): Promise<number> {
   }
   const data = await res.json();
   return data.deleted ?? 0;
+}
+
+/** Generate a citizen-fileable RTI request for a case (top rung only). */
+export async function generateRtiDraft(caseId: string): Promise<RtiDraft> {
+  const res = await fetch(`${API_BASE}/cases/${caseId}/rti-draft`, {
+    method: "POST",
+  });
+  if (!res.ok) {
+    const detail = await safeDetail(res);
+    throw new Error(detail || `Could not generate the RTI draft (${res.status})`);
+  }
+  const data = await res.json();
+  return data.rti as RtiDraft;
 }
 
 /** Fetch all cases for the map and list. */

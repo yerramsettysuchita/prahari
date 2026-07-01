@@ -30,6 +30,7 @@ from agents.escalation_agent import (
     MAX_LEVEL,
     PUBLIC_LEVEL,
     draft_for_level,
+    generate_rti_draft,
     initial_draft,
     initial_sla,
     is_past_sla,
@@ -362,6 +363,31 @@ def advance_escalation(case_id: str) -> dict:
     if result is None:
         raise HTTPException(status_code=404, detail="Case not found or already resolved.")
     return {"advanced": True, "escalation": result["escalation"], "case": result["case"]}
+
+
+@app.post("/cases/{case_id}/rti-draft")
+def rti_draft(case_id: str) -> dict:
+    """Generate a complete RTI request for a case, on request only.
+
+    Additive: it does not change how escalation advances. Grounded only in the
+    case facts. Never crashes; the generator returns an honest fallback on any
+    failure. The draft is also stored on the case so it can be reopened.
+    """
+    db = get_db()
+    if db is None:
+        raise HTTPException(status_code=503, detail="Firestore not configured.")
+
+    ref = db.collection("cases").document(case_id)
+    snap = ref.get()
+    if not snap.exists:
+        raise HTTPException(status_code=404, detail="Case not found.")
+
+    draft = generate_rti_draft(snap.to_dict())
+    try:
+        ref.update({"rtiDraft": draft})
+    except Exception as exc:  # pragma: no cover - storing is best effort
+        print(f"[rti] could not persist draft: {exc}")
+    return {"caseId": case_id, "rti": draft}
 
 
 @app.post("/cases/{case_id}/verify")

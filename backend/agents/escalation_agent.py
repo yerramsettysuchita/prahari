@@ -256,6 +256,168 @@ def draft_for_level(level: int, case: dict) -> EscalationDraft:
 
 
 # --------------------------------------------------------------------------- #
+# RTI auto-draft (additive, generated on request only). Produces a complete,
+# formally structured Right to Information request grounded ONLY in the case
+# facts. It never fabricates officer names, case numbers, or any fact not
+# present, and it omits a fact rather than inventing it. Never raises.
+# --------------------------------------------------------------------------- #
+RTI_INSTRUCTION = (
+    "You draft a complete, formally structured Right to Information request under "
+    "the Right to Information Act 2005 of India, for a citizen to file with the "
+    "Public Information Officer of the responsible municipal body. Use ONLY the "
+    "facts provided. Never invent officer names, case numbers, dates, or any fact "
+    "that is not given. Where the applicant must fill personal details, use "
+    "clearly marked blanks in square brackets such as [Applicant name], "
+    "[Address], and [Date]. Structure the document with the addressee (the Public "
+    "Information Officer of the department), a subject line, a short background "
+    "paragraph stating the issue, the specific information requested as a numbered "
+    "list covering the current status, the reason for the delay, the responsible "
+    "section, and the action taken with an expected timeline, the standard fee "
+    "declaration line, and a signature block with blanks. Keep it formal and "
+    "plain. Do not use dashes of any kind. Do not use emoji. Output only the "
+    "document text."
+)
+
+
+def _days_unresolved(case: dict) -> Optional[int]:
+    created = case.get("createdAt")
+    if not created:
+        return None
+    try:
+        c = datetime.fromisoformat(created)
+        if c.tzinfo is None:
+            c = c.replace(tzinfo=timezone.utc)
+        return max(0, (datetime.now(timezone.utc) - c).days)
+    except Exception:
+        return None
+
+
+def _rti_facts(case: dict) -> dict:
+    """Collect only the facts that are actually present. Missing facts are
+    omitted so the draft never invents them."""
+    facts: dict = {}
+    issue = case.get("type")
+    if issue and issue != "unknown":
+        facts["issueType"] = issue.replace("_", " ")
+    ward = (case.get("location") or {}).get("ward")
+    if ward:
+        facts["ward"] = ward
+    if case.get("zone"):
+        facts["zone"] = case["zone"]
+    dept = case.get("routedDept")
+    if dept and dept != "unknown":
+        facts["routedDepartment"] = dept
+    channel = case.get("grievanceChannel")
+    if channel:
+        facts["grievanceChannel"] = channel
+    days = _days_unresolved(case)
+    if days is not None:
+        facts["daysUnresolved"] = days
+    affected = case.get("citizensAffected")
+    if affected:
+        facts["citizensAffected"] = affected
+    if case.get("description"):
+        facts["description"] = case["description"]
+    return facts
+
+
+def _rti_fallback(case: dict, facts: dict) -> str:
+    """Deterministic, grounded RTI template used when the model is unavailable."""
+    dept = facts.get("routedDepartment") or "the responsible municipal department"
+    ward = facts.get("ward") or "the reported ward"
+    issue = facts.get("issueType") or "road issue"
+    days = facts.get("daysUnresolved")
+    affected = facts.get("citizensAffected")
+    channel = facts.get("grievanceChannel")
+
+    days_line = (
+        f"The issue has remained unresolved for {days} days as of the date of this application. "
+        if days is not None
+        else ""
+    )
+    affected_line = (
+        f"It currently affects {affected} citizens. " if affected else ""
+    )
+    channel_line = (
+        f"The matter was raised through {channel}. " if channel else ""
+    )
+
+    text = (
+        "To,\n"
+        f"The Public Information Officer,\n{dept}.\n\n"
+        "Subject: Request for information under the Right to Information Act 2005 "
+        f"regarding an unresolved {issue} in {ward}.\n\n"
+        "Respected Sir or Madam,\n\n"
+        f"Under the provisions of the Right to Information Act 2005, I request the "
+        f"following information regarding an unresolved {issue} reported in {ward}. "
+        f"{days_line}{affected_line}{channel_line}\n\n"
+        "I request the following information.\n"
+        "1. The current status of the reported issue.\n"
+        "2. The reason for the delay in addressing it.\n"
+        "3. The section or wing of the department responsible for this work.\n"
+        "4. The action taken so far and the expected timeline for resolution.\n\n"
+        "I am enclosing the prescribed application fee as required under the Act. "
+        "I request that the information be provided within the time limit specified "
+        "under the Act.\n\n"
+        "Yours faithfully,\n"
+        "[Applicant name]\n[Address]\n[Contact number]\n[Date]"
+    )
+    return _strip_dashes(text)
+
+
+def generate_rti_draft(case: dict) -> dict:
+    """Generate a complete, formally structured RTI request. Never raises."""
+    now = datetime.now(timezone.utc).isoformat()
+    facts = _rti_facts(case)
+
+    client = _client()
+    if client is None:
+        return {
+            "label": "Right to Information request",
+            "draftType": "RTI",
+            "text": _rti_fallback(case, facts),
+            "generatedAt": now,
+            "grounded": True,
+        }
+
+    try:
+        import json as _json
+
+        from google.genai import types
+
+        response = client.models.generate_content(
+            model=os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
+            contents=[
+                "Draft the Right to Information request using only these facts.\n"
+                + _json.dumps(facts, ensure_ascii=False)
+            ],
+            config=types.GenerateContentConfig(
+                system_instruction=RTI_INSTRUCTION,
+                temperature=0.3,
+            ),
+        )
+        text = _strip_dashes((response.text or "").strip())
+        if not text:
+            text = _rti_fallback(case, facts)
+        return {
+            "label": "Right to Information request",
+            "draftType": "RTI",
+            "text": text,
+            "generatedAt": now,
+            "grounded": True,
+        }
+    except Exception as exc:
+        print(f"[escalation_agent] RTI drafting failed: {exc}")
+        return {
+            "label": "Right to Information request",
+            "draftType": "RTI",
+            "text": _rti_fallback(case, facts),
+            "generatedAt": now,
+            "grounded": True,
+        }
+
+
+# --------------------------------------------------------------------------- #
 # ADK agent declaration (used by the orchestrator graph in later steps).
 # In production this is the long-running escalation agent: it re-checks open
 # cases on a schedule for the time-based ladder, and reacts to merge events for

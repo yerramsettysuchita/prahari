@@ -6,9 +6,12 @@ import {
   Case,
   checkEscalation,
   ESCALATION_LADDER,
+  generateRtiDraft,
+  RtiDraft,
 } from "@/lib/api";
 import { useCountdown } from "./useCountdown";
 import { DraftModal } from "./DraftModal";
+import { RtiModal } from "./RtiModal";
 
 /**
  * Escalation status for a case: the current ladder stage, a live SLA countdown
@@ -25,6 +28,9 @@ export function EscalationStatus({
   const [showDrafts, setShowDrafts] = useState(false);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  const [rti, setRti] = useState<RtiDraft | null>(caseItem.rtiDraft ?? null);
+  const [showRti, setShowRti] = useState(false);
+  const [rtiBusy, setRtiBusy] = useState(false);
 
   const level = caseItem.escalationLevel ?? 0;
   const label = caseItem.escalationLabel ?? ESCALATION_LADDER[level] ?? "Filed";
@@ -59,6 +65,23 @@ export function EscalationStatus({
       setBusy(false);
     }
   };
+
+  const runRti = async () => {
+    setRtiBusy(true);
+    setNote(null);
+    try {
+      const draft = rti ?? (await generateRtiDraft(caseItem.id));
+      setRti(draft);
+      setShowRti(true);
+    } catch (e) {
+      setNote(e instanceof Error ? e.message : "Could not generate the RTI draft.");
+    } finally {
+      setRtiBusy(false);
+    }
+  };
+
+  // The RTI action appears only once a case has reached the top rung.
+  const atTopRung = !resolved && level >= 3;
 
   return (
     <div className="border-t border-line pt-3">
@@ -117,6 +140,15 @@ export function EscalationStatus({
             </button>
           </>
         ) : null}
+        {atTopRung ? (
+          <button
+            onClick={runRti}
+            disabled={rtiBusy}
+            className="rounded-md border border-accent/40 bg-accent/10 px-2.5 py-1 font-body text-xs font-medium text-accent transition-colors hover:bg-accent/15 disabled:opacity-50"
+          >
+            {rtiBusy ? "Drafting RTI" : rti ? "View RTI draft" : "Generate RTI draft"}
+          </button>
+        ) : null}
       </div>
 
       {note ? (
@@ -125,6 +157,14 @@ export function EscalationStatus({
 
       {showDrafts ? (
         <DraftModal caseItem={caseItem} onClose={() => setShowDrafts(false)} />
+      ) : null}
+
+      {showRti && rti ? (
+        <RtiModal
+          caseItem={caseItem}
+          rti={rti}
+          onClose={() => setShowRti(false)}
+        />
       ) : null}
     </div>
   );
