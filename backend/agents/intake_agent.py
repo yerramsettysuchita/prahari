@@ -186,12 +186,12 @@ def transcribe_voice(audio_bytes: Optional[bytes], mime_type: str) -> dict:
             "required": ["language", "spokenText", "englishText"],
         }
         instruction = (
-            "The audio is a citizen reporting a road issue in an Indian city, "
-            "most likely in Kannada, Hindi, or English. Detect the spoken "
-            "language, transcribe exactly what was said as spokenText in its own "
-            "script, and give a clear English translation as englishText. If the "
-            "audio is unclear, do your best and keep it short. Do not use dashes "
-            "of any kind. Do not use emoji."
+            "The audio is a citizen reporting a road issue in an Indian city, in "
+            "an Indian language such as Telugu, Kannada, Hindi, Tamil, or English. "
+            "Detect the spoken language, transcribe exactly what was said as "
+            "spokenText in its own script, and give a clear English translation as "
+            "englishText. If the audio is unclear, do your best and keep it short. "
+            "Do not use dashes of any kind. Do not use emoji."
         )
         response = client.models.generate_content(
             model=os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),

@@ -201,7 +201,7 @@ export function ReportPanel({ onCreated }: { onCreated: (c: Case) => void }) {
           Voice note (optional)
         </label>
         <p className="mt-1 font-body text-xs text-muted">
-          Speak in Kannada, Hindi, or English. An agent transcribes and
+          Speak in Telugu, Kannada, Hindi, or English. An agent transcribes and
           translates it.
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-3">

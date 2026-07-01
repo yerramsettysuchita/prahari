@@ -56,6 +56,7 @@ def _case(
     created_days_ago: float,
     confidence: float = 0.92,
     needs_community: bool = False,
+    community_confirmations: int = 0,
     jitter_index: int = 1,
 ) -> dict:
     lat, lng = _jitter(WARDS[ward], jitter_index)
@@ -89,7 +90,7 @@ def _case(
         "description": description,
         "classificationConfidence": confidence,
         "needsCommunity": needs_community,
-        "communityConfirmations": 0,
+        "communityConfirmations": community_confirmations,
         "seed": True,
     }
     filed = initial_draft(case)
@@ -139,6 +140,14 @@ def build_cases() -> list[dict]:
         _case("seed-10", "Banashankari Temple Ward", "waterlogging", "medium",
               "Water pooling at a temple road corner after rain.",
               citizens=2, created_days_ago=1, jitter_index=3),
+
+        # Dedicated community co-sign demo case. It is flagged for community
+        # confirmation and pre-loaded one short of the target, so a single
+        # "I see this too" flips it to community confirmed on camera.
+        _case("seed-cosign", "Koramangala", "pothole", "medium",
+              "Pothole reported by a citizen with low confidence, needs community confirmation.",
+              citizens=2, created_days_ago=0.3, confidence=0.42,
+              needs_community=True, community_confirmations=2, jitter_index=1),
     ]
 
 
